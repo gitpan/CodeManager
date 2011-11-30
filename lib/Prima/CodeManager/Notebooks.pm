@@ -1154,7 +1154,6 @@ sub on_paint
 	my @size = $canvas-> size;
 	my $on_top = ($self-> {orientation} == tno::Top);
 	$canvas-> color( $clr[1]);
-
 	$canvas-> bar( 0, 0, @size);
 
 	if ($self-> {style} == tns::Standard) {
@@ -1167,7 +1166,6 @@ sub on_paint
 			1,
 			reverse @c3d
 		);
-
 		$canvas-> rect3d(
 			DefBorderX,					DefBorderX,
 			$size[0] - 1 - DefBorderX,	$size[1] - 1 - DefBorderX,
@@ -1186,9 +1184,7 @@ sub on_paint
 		my $fh = 24;
 		my $a  = 0;
 		my ($pi, $mpi) = (
-
 			$self-> {notebook}-> pageIndex,
-
 			$self-> {notebook}-> pageCount - 1
 		);
 
@@ -1208,12 +1204,7 @@ sub on_paint
 			$canvas-> text_out( ' '.$t1, DefBorderX + 4, $yh );
 
 			if ( $$t[ $tx * 2 + 1] > 0 ) {
-				$t1 = sprintf(
-					"Page %d of %d ",
-
-					$self-> pageIndex + 1,
-					$self-> pageCount
-				);
+				$t1 = sprintf( "Page %d of %d ", $self-> pageIndex + 1, $self-> pageCount );
 				my $tl1 = $size[0] - DefBorderX - 3 - DefBookmarkX - $self-> get_text_width( $t1);
 				$canvas-> text_out( $t1, $tl1, $yh ) if $tl1 > 4 + DefBorderX + $fh * 3;
 			}
@@ -1226,14 +1217,10 @@ sub on_paint
 
 		if ( $a & 1 ) {
 			$canvas-> polyline([
-
 				$x - 1,					$y - 4,
-
 				$x - 1,					$y - DefBookmarkX,
-
 				$x - 5 + DefBookmarkX,	$y - DefBookmarkX,
 				$x - 1,					$y - 4,
-
 			]);
 			$canvas-> polyline([
 				$x +  3, $y - DefBookmarkX +  7,
@@ -1246,10 +1233,8 @@ sub on_paint
 
 		if ( $a & 2 ) {
 			$canvas-> polyline([
-
 				$x - 5 + DefBookmarkX,	$y - DefBookmarkX,
 				$x - 1,					$y - 4,
-
 				$x - 5 + DefBookmarkX,	$y - 4,
 				$x - 5 + DefBookmarkX,	$y - DefBookmarkX,
 			]);
@@ -1494,12 +1479,14 @@ sub adjust_widgets
 
 	$size[1] -= $ts-> height;
 	if ($self-> {style} == tns::Standard) {
-		$size[0] -= 2 * DefBorderX + 6;
+
+		$size[0] -= 2 * DefBorderX + 2;
 		$size[1] -= 2 * DefBorderX + DefBookmarkX + 4;
 		$pos[0] += DefBorderX + 1;
 		$pos[1] += DefBorderX + 1;
-	}
-	else {
+
+	} else {
+
 		$size[0] -= 2;
 		$size[1] -= 2;
 		$pos[0]++;
@@ -1507,9 +1494,11 @@ sub adjust_widgets
 	}
 
 	if ($self-> {orientation} == tno::Top) {
+
 		$ts-> top($self-> height);
-	}
-	else {
+
+	} else {
+
 		$ts-> bottom(0);
 		$pos[1] += $ts-> height - 5;
 	}

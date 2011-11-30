@@ -202,43 +202,44 @@ sub create_user_home_directory
 	mkdir "$home_directory";
 	$self-> write_to_file ( "$home_directory/.exists" , '' );
 
-my $CodeManager_CodeManager =<< "CodeManagerCodeManager";
+my $CodeManager_CodeManager =<< "_CODE_MANAGER_";
 [GLOBAL]
-;group of projects (future)
+#group of projects (future)
 group = System
-;name of project
+
+#name of project
 name = CodeManager
 
 ############## PROJECT TREE CONFIGURATION #############
-;main project encoding
-;can be redefined in each sub-project [DIRECTORY]
+#main project encoding
+#can be redefined in each sub-project [DIRECTORY]
 CodeManager_encoding= UTF8
-;this is the height of one tree project branch:
-;if none or less than 16 then tree_itemHeight = 16
+#this is the height of one tree project branch:
+#if none or less than 16 then tree_itemHeight = 16
 tree_itemHeight		= 18
-;the indent of next level branch relative to the parent one.
-;if none or less than 16 then tree_itemIndent = 16
+#the indent of next level branch relative to the parent one.
+#if none or less than 16 then tree_itemIndent = 16
 tree_itemIndent		= 16
-;font name of the branches description
-;if none then DejaVu Sans Mono is taken
+#font name of the branches description
+#if none then DejaVu Sans Mono is taken
 tree_fontName		= DejaVu Sans Mono
-;size and height of branch description font.
-;only one is taken; height - if > 0 - has higher rank than size
-;if none then tree_fontSize = 0.625 * tree_itemHeight
+#size and height of branch description font.
+#only one is taken; height - if > 0 - has higher rank than size
+#if none then tree_fontSize = 0.625 * tree_itemHeight
 tree_fontSize		= 10
-;tree_fontHeight	= 30
+#tree_fontHeight	= 30
 
 ############## EDITOR PANEL #############
-;additional space between lines. Can be negative!
-;It is possible to dynamically change by pressing AltDown/AltUp keys
+#additional space between lines. Can be negative!
+#It is possible to dynamically change by pressing AltDown/AltUp keys
 editor_lineSpace	=  2
 
-;editor font size or height (similar rules to the tree configuration ones)
-;It is possible to dynamically change by pressing CtrlDown/CtrlUp keys
+#editor font size or height (similar rules to the tree configuration ones)
+#It is possible to dynamically change by pressing CtrlDown/CtrlUp keys
 editor_fontSize		= 11
-;editor_fontHeight	= 12
+#editor_fontHeight	= 12
 
-;Font family should be chosen the mono type, but whatever!
+#Font family should be chosen the mono type, but whatever!
 editor_fontName		= DejaVu Sans Mono
 
 ############## NOTEBOOK CONFIGURATION #############
@@ -248,8 +249,6 @@ notebook_fontName	= Arial
 
 [EXTERNAL_EDITORS]
 png	=	gimp
-ico	=	gimp
-gif	=	gimp
 exe	=	no edit!
 
 [DIRECTORY]
@@ -269,27 +268,29 @@ directories	= all
 
 [DIRECTORY]
 name		= CodeManager
-image		= pm.png
+image		= cm.png
 linux		= %CodeManager%
 windows		= %CodeManager%
 extensions	= all
+ext_exclude	= \\.exists\$
 directories	= all
+dir_exclude	= \\.svn\$
 
-CodeManagerCodeManager
+_CODE_MANAGER_
 
 	mkdir "$home_directory/projects";
-#	$self-> write_to_file ( "$home_directory/projects/.exists" , '' );
+	$self-> write_to_file ( "$home_directory/projects/.exists" , '' );
 	$self-> write_to_file ( "$home_directory/projects/CodeManager.cm" , $CodeManager_CodeManager );
 
 	mkdir "$home_directory/templates";
-#	$self-> write_to_file ( "$home_directory/templates/.exists" , '' );
+	$self-> write_to_file ( "$home_directory/templates/.exists" , '' );
 	$self-> write_to_file ( "$home_directory/templates/templates.ini" , '' );
 
 	mkdir "$home_directory/templates/default";
-#	$self-> write_to_file ( "$home_directory/templates/default/.exists" , '' );
+	$self-> write_to_file ( "$home_directory/templates/default/.exists" , '' );
 
 	mkdir "$home_directory/templates/list";
-#	$self-> write_to_file ( "$home_directory/templates/list/.exists" , '' );
+	$self-> write_to_file ( "$home_directory/templates/list/.exists" , '' );
 
 	return;
 }

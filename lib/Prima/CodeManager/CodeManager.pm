@@ -1,4 +1,12 @@
 
+package Prima::CodeManager::CodeManager;
+
+our $VERSION  = '0.02';
+
+1;
+
+#######################################################################
+
 package Prima::CodeManager;
 
 use strict;
@@ -25,15 +33,11 @@ use File::Path qw(make_path remove_tree);
 use File::Copy::Recursive qw(fcopy rcopy dircopy fmove rmove dirmove);
 use File::HomeDir;
 
-use vars qw($VERSION);
-$VERSION  = '0.01';
+our $VERSION  = '0.02';
 
 ########################################################################################
 
 my ( $screen_width, $screen_height ) = $::application->size;
-my $project_color = 0x337700;
-my $popup;
-
 $::application-> wantUnicodeInput(1);
 
 #-------------------------------------------------------
@@ -68,12 +72,17 @@ our %info_of_files;
 our @list_of_files;
 our %file_encodings; #this is a hash of the files encodings
 our %all_extensions;
-
 our $file_number = 0;
 
 #-------------------------------------------------------
 
 our @warpColors = ( 0xffaa00, 0x50d8f8, 0x80d8a8, 0x8090f8, 0xd0b4a8, 0xf8fca8, 0xa890a8, 0xf89050, 0xf8d850, 0xf8b4a8, 0xf8d8a8, );
+my $random_kolor = int(rand( @warpColors - 1 ));
+#my $project_color = 0x330077;
+my $project_color = $warpColors[$random_kolor] ;
+$project_color = Prima::CodeManager::Misc::licz_kolor( 0, 0x000000, $project_color, 0.3 );
+
+my $popup;
 
 ########################################################################################
 
@@ -97,24 +106,18 @@ sub new
 			style	=>	fs::Normal,
 		},
 	);
-
 #-------------------------------------------------------
-
 	$this->create_user_home_directory ( $home_directory, $CodeManager_directory ) unless -e "$home_directory/.exists";
 	Prima::message ( "I can't create your CodeManager home directory:\n$home_directory" ) unless -e "$home_directory/.exists";
-
 #-------------------------------------------------------
 	my $DIR;
-
 	#reading names of the hiliting files in "Prima/CodeManager/hilite" subdirectory:
 	my @hilite_files = [];
 	my @hilite_files_ext; # = <$CodeManager_directory/hilite/hilite_*.pl>;
-
 	if ( opendir $DIR, "$CodeManager_directory/hilite" ) {
-		@hilite_files_ext = grep { $_ =~ /hilite_\w+\.pl/ } readdir $DIR; 
+		@hilite_files_ext = sort grep { $_ =~ /hilite_\w+\.pl/ } readdir $DIR;
 		closedir $DIR;
 	}
-
 	for ( my $i = 0; $i < @hilite_files_ext; $i++ ) {
 		if ( $hilite_files_ext[$i] =~ /hilite_(\w+)\.pl/ ) {
 			my $ext = $1;
@@ -124,36 +127,28 @@ sub new
 			$all_extensions{'pm'} = 'pm' if $ext eq 'pl';
 		}
 	}
-
 #-------------------------------------------------------
-
 	#reading images:
 	my @images_files_ext; # = <$CodeManager_directory/img/*.png>;
-
 	if ( opendir $DIR, "$CodeManager_directory/img" ) {
-		@images_files_ext = grep { $_ =~ /\.png/ } readdir $DIR; 
+		@images_files_ext = sort grep { $_ =~ /\.png/ } readdir $DIR;
 		closedir $DIR;
 	}
-
 	for ( my $i = 0; $i < @images_files_ext; $i++ ) {
 		if ( $images_files_ext[$i] =~ /(\w+)\.png$/ ) {
 			$this->{images}->{$1} = $this-> load_icon( "$CodeManager_directory/img/$1.png" );
 			$this->{images}->{$1} = $this-> load_icon( "$CodeManager_directory/img/nil.png" ) unless $this->{images}->{$1};
 		}
 	}
-
 #-------------------------------------------------------
-
 	#reading names of the projects file names in the user CodeManager home "~/.CodeManager/projects" subdirectory:
 	my @projects_files_edit = [];
 	my @projects_files_open = [];
 	my @projects_files_name;
-
 	if ( opendir $DIR, "$home_directory/projects" ) {
-		@projects_files_name = grep { $_ =~ /\.cm/ } readdir $DIR; 
+		@projects_files_name = sort grep { $_ =~ /\.cm/ } readdir $DIR;
 		closedir $DIR;
 	}
-
 	for ( my $i = 0; $i < @projects_files_name; $i++ ) {
 		if ( $projects_files_name[$i] =~ /([^\/]+)\.cm/ ) {
 			my $name = $1;
@@ -163,11 +158,9 @@ sub new
 			}
 		}
 	}
-
 #-------------------------------------------------------
-
 	$this->{mw} = Prima::MainWindow-> create(
-		icon => $this-> load_icon( "$CodeManager_directory/img/cm128.png" ),
+		icon => $this-> load_icon( "$CodeManager_directory/img/cm512.png" ),
 		name		=>	'CodeManager',
 		text		=>	'CodeManager',
 		title		=>	'CodeManager',
@@ -179,23 +172,24 @@ sub new
 			size	=>	9,
 			style	=>	fs::Normal,
 		},
+		menuBackColor => $this->licz_kolor( 0xffffff, $project_color, 0.3 ),
 		menuItems => [
 			[ '~System' => [
 				[ '~Hiliting Files'	=> [ @hilite_files ]],
+				[ '~Meld'			=> 'AltM'			=> '@M'		=> sub { system('meld Prima/CodeManager/CodeManager.pm CPAN/Prima-CodeManager-001/lib/Prima/CodeManager/CodeManager.pm') }],
 #				[ '~Hiliting Files'	=> 'CtrlH'			=> '^H'		=> sub { &hilite_open }]
 #				],
 				[],
 				[ 'E~xit'			=> 'AltX'			=> '@X'		=> sub { $::application-> close}],
 			]],
 			[ '~Project' => [
-				[ '~Open...'		=> 'F4'				=> 'F4'		=> sub { $this-> open }],
+				[ '~Open project'	=> [ @projects_files_open ]],
+				[],
+				[ '~Open from disk'	=> 'F4'				=> 'F4'		=> sub { $this-> open }],
 				[ '~Refresh'		=> 'F5'				=> 'F5'		=> sub { $this-> make_tree }],
 				[ '~Save'			=> 'F2'				=> 'F2'		=> sub { $this-> save }],
 				[],
-#				[ '~Open project from group'	=> [ @projects_files_grou ]],
-				[ '~Open project'			=> [ @projects_files_open ]],
-				[],
-				[ '~Edit project file'		=> [ @projects_files_edit ]],
+				[ '~Edit projects files'=> [ @projects_files_edit ]],
 			]],
 			[ '~Edit' => [
 				[ 'Undo'			=> 'CtrlZ'			=> '^Z',					q(undo)],
@@ -204,8 +198,8 @@ sub new
 			]],
 			[ '~File' => [
 #				[ '~New'			=> 'CtrlN'			=> '^N'		=> sub { $this-> file_new($this) } ],
-				[ '~Open...'		=> 'CtrlO'			=> '^O'		=> sub { $this-> file_open($this) } ],
-				[ '~Save'			=> 'CtrlS'			=> '^S'		=> sub { $this-> file_save($this) } ],
+				[ '~Open...'		=> 'CtrlO'			=> '^O'		=> sub { $this-> file_open } ],
+				[ '~Save'			=> 'CtrlS'			=> '^S'		=> sub { $this-> file_save } ],
 #				[ 'Save ~as...'		=> 'CtrlA'			=> '^A'		=> sub { $this-> file_save_as($this) } ],
 				[ '~Find...'		=> 'CtrlF'			=> '^F'		=> sub { $this-> find } ],
 				['~Replace...'		=> 'CtrlR'			=> '^R'		=> sub { $this-> replace } ],
@@ -225,25 +219,35 @@ sub new
 #				['Re~place pages'	=> 'Ctrl+L'			=> '^L'		=> sub { $this-> file_replace }],
 			]],
 			[ '~Help' => [
-				['~About'	=> sub { $this-> about }],
+				["~About ver. $VERSION"	=> sub { $this-> about }],
 			]],
 		],
-		onClose		=>	sub { $this-> close },
+		onClose		=>	sub {
+			my $r = 0;
+			for ( my $i = 0; $i < $Prima::CodeManager::developer{notes}->pageCount; $i++ ) {
+				$r = 0;
+				if ( $Prima::CodeManager::developer{ "notes_$i" }-> modified ) {
+					$r =  Prima::MsgBox::message_box (
+						"File not saved! ",
+						'File '.$Prima::CodeManager::list_of_files[$i].' has been modified.  Save?', mb::YesNoCancel | mb::Warning
+					);
+					$this-> file_save_batch( $i ) if $r == mb::Yes;
+					$_[0]-> clear_event, return if $r == mb::Cancel;
+				}
+			}
+			$_[0]-> clear_event, return if mb::Cancel == $r;
+		},
 	);
 
 	return $this;
 }
-
 ################################################################################
-
 sub loop
 {
 	my ( $self ) = shift;
 	run Prima;
 }
-
 ################################################################################
-
 sub load_icon {
 	my ( $self, $file ) = @_;
 	my $dir = '';
@@ -253,73 +257,80 @@ sub load_icon {
 	$im->load( $file ) || return undef;
 	return $im;
 }
-
 ################################################################################
-
 sub open
 {
 	my ( $self, $project_file ) = ( shift, shift );
-
+	my $sliderWidth = 4;
 	unless ( $self->{frame_main} ) {
-
 		$self-> {frame_main} = $self->{mw}-> insert(
 			FrameSet	=>
-			owner			=>	$self->{mw},
+			owner		=>	$self->{mw},
 			frameProfile => {
+				borderWidth		=>	0,
 				backColor		=>	$self->licz_kolor( 0xffffff, $project_color, 0.5 ),
-				borderWidth		=>	1,
-				light3DColor	=>	$self->licz_kolor( 0xffffff, $project_color, 0.5 ),
-				dark3DColor		=>	$self->licz_kolor( $project_color, 0x000000, 0.5 ),
 			},
 			arrangement		=>	fra::Vertical,
 			size			=>	[$self->{mw}-> size],
 			origin			=>	[0,0],
 			frameSizes		=>	[qw(3% *)],
 			opaqueResize	=>	1,
+			sliderWidth		=>	$sliderWidth,
+			sliderProfile => {
+				borderWidth		=>	1,
+				backColor		=>	$self->licz_kolor( 0xffffff, $project_color, 0.5 ),
+				light3DColor	=>	$self->licz_kolor( 0xffffff, $project_color, 0.6 ),
+				dark3DColor		=>	$self->licz_kolor( 0xffffff, $project_color, 0.4 ),
+			},
 		);
-
 		$self-> {frame_top} = $self-> {frame_main}-> insert_to_frame(
 			1,
 			FrameSet	=>
 			frameProfile => {
+				borderWidth		=>	0,
 				backColor		=>	$self->licz_kolor( 0xffffff, $project_color, 0.5 ),
-				borderWidth		=>	1,
-				light3DColor	=>	$self->licz_kolor( 0xffffff, $project_color, 0.5 ),
-				dark3DColor		=>	$self->licz_kolor( $project_color, 0x000000, 0.5 ),
 			},
 			size			=>	[$self-> {frame_main}-> frames-> [1]-> size],
 			origin			=>	[0,0],
 			frameSizes		=>	[qw(20% *)],
 			opaqueResize	=>	1,
+			sliderWidth		=>	$sliderWidth,
+			sliderProfile => {
+				borderWidth		=>	1,
+				backColor		=>	$self->licz_kolor( 0xffffff, $project_color, 0.5 ),
+				light3DColor	=>	$self->licz_kolor( 0xffffff, $project_color, 0.6 ),
+				dark3DColor		=>	$self->licz_kolor( 0xffffff, $project_color, 0.4 ),
+			},
 		);
-
 		$self-> {frame_left} = $self-> {frame_top}-> insert_to_frame(
 			0,
 			FrameSet	=>
 			frameProfile => {
-				backColor		=>	$self->licz_kolor( 0xffffff, $project_color, 0.5 ),
 				borderWidth		=>	1,
-				light3DColor	=>	$self->licz_kolor( 0xffffff, $project_color, 0.5 ),
-				dark3DColor		=>	$self->licz_kolor( $project_color, 0x000000, 0.5 ),
+				backColor		=>	$self->licz_kolor( 0xffffff, $project_color, 0.5 ),
 			},
 			arrangement		=>	fra::Vertical,
 			size			=>	[$self-> {frame_top}-> frames-> [0]-> size],
 			origin			=>	[0,0],
 			frameSizes		=>	[qw(20% *)],
 			opaqueResize	=>	1,
+			sliderWidth		=>	$sliderWidth,
+			sliderProfile => {
+				borderWidth		=>	1,
+				backColor		=>	$self->licz_kolor( 0xffffff, $project_color, 0.5 ),
+				light3DColor	=>	$self->licz_kolor( 0xffffff, $project_color, 0.6 ),
+				dark3DColor		=>	$self->licz_kolor( 0xffffff, $project_color, 0.4 ),
+			},
 		);
 	}
-
 #-------------------------------------------------------------------------------
 	#if no project is defined we define empty one:
 	$project_file ||= '';
-
 	#if does not exixts we look in project directories; local and home ones:
 	unless ( -f $project_file ) {
 		$project_file = "./projects/$project_file" if -f "./projects/$project_file";
 		$project_file = "$home_directory/projects/$project_file" if -f "$home_directory/projects/$project_file";
 	}
-
 	#if still does not exists then it should be choosen:
 	unless ( -f $project_file ) {
 		my $win = Prima::OpenDialog-> new(
@@ -334,15 +345,10 @@ sub open
 		);
 		$project_file = $win-> fileName() if $win-> execute();
 	}
-
 	#if still does not exists then we resign:
-
 	return unless -f $project_file;
-
 #-------------------------------------------------------------------------------
-
 	undef $self->{global};
-
 	if ( -f $project_file && CORE::open ( my $FH, "<", $project_file ))
 	{
 		my $group = '';
@@ -380,33 +386,26 @@ sub open
 	}
 	$self->{mw}->set( text => $self->{global}->{GLOBAL}->{name});
 	$self->{global}->{GLOBAL}{notebook_fontSize} ||= 10;
-
 	$self->{global}->{extensions} = '';
 	my $i = 0;
 	while ( $self->{global}->{DIRECTORY}->{$_OS."_$i"} ) {
-
 		$self->{global}->{DIRECTORY}->{"directories_$i"} ||= '';
-
 		$self->{global}->{DIRECTORY}->{$_OS."_$i"} =~ s/\~/$home_directory/g;
 		$self->{global}->{DIRECTORY}->{"directory_$i"}  = $self->{global}->{DIRECTORY}->{$_OS."_$i"};
 		$self->{global}->{DIRECTORY}->{"directory_$i"}  =~ s/\%CodeManager\%/$CodeManager_directory/g;
-
 		$self->{global}->{DIRECTORY}->{"extensions_$i"} ||= '';
 		$self->{global}->{extensions} .= '|'.$self->{global}->{DIRECTORY}->{"extensions_$i"} if $self->{global}->{DIRECTORY}->{"extensions_$i"};
-
 		$i++;
 	}
 	$self->{global}->{extensions} = 'nil|dir|'.$self->{global}->{extensions};
 	$self->{global}->{extensions} =~ s/\s+//g;
 	$self->{global}->{extensions} =~ s/\|+/\|/g;
-
 	my @exten = split '\|', $self->{global}->{extensions};
 #	for (@exten) {
 #		$self->{images}->{$_} = $self-> load_icon( "$CodeManager_directory/img/$_.png" );
 #		$self->{images}->{$_} = $self-> load_icon( "$CodeManager_directory/img/nil.png" ) unless $self->{images}->{$_};
 #		eval( $self->read_file( "$CodeManager_directory/hilite/hilite_$_.pl")) if -e "$CodeManager_directory/hilite/hilite_$_.pl";
 #	}
-
 	$self->{global}->{GLOBAL}->{CodeManager_encoding} ||= '';
 	$main::CodeManager_encoding = $self->{global}->{GLOBAL}->{CodeManager_encoding};
 	$self->{global}->{GLOBAL}->{backup} = 0 unless $self->{global}->{GLOBAL}->{backup};
@@ -415,53 +414,43 @@ sub open
 
 	return;
 }
-
 ####################################################################
-
 sub make_tree
 {
 	my ( $self ) = shift;
-
-	$self->{global}->{GLOBAL}{tree_itemHeight} ||= 16;
-	$self->{global}->{GLOBAL}{tree_itemHeight}   = 16 if $self->{global}->{GLOBAL}{tree_itemHeight} < 16;
-
 	$self->{global}->{GLOBAL}{tree_itemIndent} ||= 16;
 	$self->{global}->{GLOBAL}{tree_itemIndent}   = 16 if $self->{global}->{GLOBAL}{tree_itemIndent} < 16;
-
 	my ( $type_dimen, $font_dimen ) = ( 'size', int( 0.625 * $self->{global}->{GLOBAL}{tree_itemHeight}));
-
 	if ( $self->{global}->{GLOBAL}{tree_fontHeight}
 		&& $self->{global}->{GLOBAL}{tree_fontHeight} > 0
 	) {
-
 		$type_dimen	= 'height';
 		$font_dimen	=  $self->{global}->{GLOBAL}{tree_fontHeight};
-
 	} elsif ( $self->{global}->{GLOBAL}{tree_fontSize}
 		&& $self->{global}->{GLOBAL}{tree_fontSize} > 0
 	) {
-
 		$type_dimen	= 'size';
 		$font_dimen	=  $self->{global}->{GLOBAL}{tree_fontSize};
 	}
 	$self->{global}->{GLOBAL}{tree_fontName}   ||= 'DejaVu Sans Mono';
-
 	my @items = [];
 	my $i = 0;
 	while ( my $directory = $self->{global}->{DIRECTORY}->{"directory_$i"} ) {
 		$self->{global}->{DIRECTORY}->{"directory_$i"} .= '/' unless $self->{global}->{DIRECTORY}->{"directory_$i"} =~ /\/$/;
 		$self->{global}->{DIRECTORY}->{"image_$i"} = '' unless $self->{global}->{DIRECTORY}->{"image_$i"};
-
 		$self->{images}->{"dir_$i"} =
 			$self-> load_icon( $self->{global}->{DIRECTORY}->{"image_$i"} )
 			|| $self-> load_icon( "$CodeManager_directory/img/".$self->{global}->{DIRECTORY}->{"image_$i"} )
 			|| $self-> load_icon( "$CodeManager_directory/img/nil.png" );
-
 		my $name = $self->{global}->{DIRECTORY}->{"name_$i"};
 		$name = $self->{global}->{DIRECTORY}->{name}.'-'.$i unless $name;
 		$items[0]->[$i][0] = [ $name, $self->{images}->{"dir_$i"}, 0, '', $directory, $i, $name ];
 		$items[0]->[$i][1] = [];
-		$items[0]->[$i][1] = [] unless $self-> read_tree( $items[0]->[$i][1], $directory, 1, $i );
+
+		my $ext_exclude = '\.~CodeManager';		$ext_exclude .= '|'.$self->{global}->{DIRECTORY}->{"ext_exclude_$i"} if $self->{global}->{DIRECTORY}->{"ext_exclude_$i"};
+		my $dir_exclude = '\.~CodeManager';		$dir_exclude .= '|'.$self->{global}->{DIRECTORY}->{"dir_exclude_$i"} if $self->{global}->{DIRECTORY}->{"dir_exclude_$i"};
+
+		$items[0]->[$i][1] = [] unless $self-> read_tree( $items[0]->[$i][1], $directory, 1, $i, $ext_exclude, $dir_exclude );
 		$items[0]->[$i][2] = $self->{expanded}->{$name} || 0;
 		$self->{list}->[$i] = $items[0]->[$i][0];
 		$i++;
@@ -475,15 +464,20 @@ sub make_tree
 		extendedSelect	=>	0,
 		path			=>	'./',
 		buffered		=>	0,
-		light3DColor	=>	cl::Black,
-		dark3DColor		=>	cl::Black,
 		borderWidth		=>	1,
 		place => {
-			x=>0,	relx => 0.5,	width=>-10,		relwidth => 1,
-			y=>0,	rely => 0.5,	height=>-10,	relheight => 1,
+			x=>0,	relx => 0.5,	width	=>-6,	relwidth	=> 1,
+			y=>-2,	rely => 0.5,	height	=>-6,	relheight	=> 1,
 		},
-		backColor		=>	$self->licz_kolor( 0xffffff, $project_color, 1 ),
-		darkColor		=>	$self->licz_kolor( 0xffffff, $project_color, 0.9 ),
+		light3DColor=>	$self->licz_kolor( 0xffffff, $project_color, 0.2 ),
+		dark3DColor	=>	$self->licz_kolor( 0xffffff, $project_color, 0.4 ),
+		darkColor	=>	$self->licz_kolor( 0xffffff, $project_color, 0.8 ),
+		frameProfile => {
+			borderWidth	=>	1,
+			backColor	=>	$self->licz_kolor( 0xffffff, $project_color, 0.5 ),
+			light3DColor=>	$self->licz_kolor( 0xffffff, $project_color, 0.6 ),
+			dark3DColor	=>	$self->licz_kolor( 0xffffff, $project_color, 0.4 ),
+		},
 		items			=>	@items,
 		indent			=>	$self->{global}->{GLOBAL}{tree_itemIndent},
 		itemHeight		=>	$self->{global}->{GLOBAL}{tree_itemHeight},
@@ -526,15 +520,11 @@ sub make_tree
 			#we remember (for later refreshing) if the branch is expanded:
 			$self->{expanded}->{$arr[0]->[0]->[6]} = $arr[0]->[2] if defined $arr[0]->[2];
 		},
-
 		onKeyDown	=>	sub {
 			my ($this, $code, $key, $mode) = @_;
-
 #			print "$this, $code, $key, $mode\n";
-
 			if ( $code == 13 ) {
 				my $current = $this->focusedItem;
-
 				my @arr = $this-> get_item( $current );
 				if ( $arr[0]->[0] ) {
 					my $fn  = $arr[0]->[0]->[4].'/'.$arr[0]->[0]->[0];
@@ -550,44 +540,48 @@ sub make_tree
 	$developer{ftt} = $self-> {frame_left}-> insert_to_frame (
 		0,
 		CheckList	=>
-#			pack			=> { fill => 'both', expand => 1},
-			items			=> [],
-			multiColumn		=> 0,
-			vertical		=> 1,
-			multiSelect		=> 1,
-#			vector			=> $v,
-			extendedSelect	=> 0,
-			place 			=> {
-				x =>  0,	relx => 0.5,	width  =>  0,	relwidth  => 1,
-				y =>  0,	rely => 0.5,	height =>  0,	relheight => 1,
-			},
-			font		=>	{
-				name	=>	'DejaVu Sans Mono',
-				size	=>	9,
-				style	=>	fs::Normal,
-			},
+		items			=> [],
+		multiColumn		=> 0,
+		vertical		=> 1,
+		multiSelect		=> 1,
+		extendedSelect	=> 0,
+		place 			=> {
+			x =>  0,	relx => 0.5,	width  => -6,	relwidth  => 1,
+			y =>  0,	rely => 0.5,	height => -6,	relheight => 1,
+		},
+		font		=>	{
+			name	=>	'DejaVu Sans Mono',
+			size	=>	9,
+			style	=>	fs::Normal,
+		},
+		frameProfile => {
+			borderWidth	=>	1,
+			backColor	=>	$self->licz_kolor( 0xffffff, $project_color, 0.5 ),
+			light3DColor=>	$self->licz_kolor( 0xffffff, $project_color, 0.6 ),
+			dark3DColor	=>	$self->licz_kolor( 0xffffff, $project_color, 0.4 ),
+		},
+		borderWidth		=>	1,
+		light3DColor=>	$self->licz_kolor( 0xffffff, $project_color, 0.2 ),
+		dark3DColor	=>	$self->licz_kolor( 0xffffff, $project_color, 0.2 ),
 	);
 }
-
 ####################################################################
-
 sub save
 {
 	my $r =  Prima::MsgBox::message_box (
-	'Project saving',
-	'Sorry! Project saving is not ready yet...', mb::OK
+		'Project saving',
+		'Sorry! Project saving is not ready yet...', mb::OK
 	);
 }
-
 ####################################################################
-
 sub read_tree {
-	my ( $self, $object, $dir, $level, $nr_of_dir ) = @_;
+	my ( $self, $object, $dir, $level, $nr_of_dir, $ext_exclude, $dir_exclude ) = @_;
 	$dir =~  s/\/$//;
 	my $k = 0;
 	my @fils = $self->read_dir( $dir, 'file', $nr_of_dir );
 	for ( my $i = 0 ; $i < @fils ; $i++ ) {
-		next if $fils[$i] =~ /\.\~CodeManager$/;
+#		next if $fils[$i] =~ /\.\~CodeManager$/;
+		next if $ext_exclude && $fils[$i] =~ /$ext_exclude$/;
 		$fils[$i] =~  /\.(\w+)$/;
 		my $ext = lc($1);
 		$ext = '' unless $ext;
@@ -598,10 +592,10 @@ sub read_tree {
 	}
 	my @dirs = $self->read_dir( $dir, 'dir', $nr_of_dir  );
 	for ( my $i = 0 ; $i < @dirs ; $i++ ) {
-		next if $dirs[$i] =~ /\.\~CodeManager$/;
+		next if $dir_exclude && $dirs[$i] =~ /$dir_exclude$/;
 		$object->[$k][0] = [ $dirs[$i], $self->{images}->{dir}, $level, '', $dir, $nr_of_dir, "$dir/$dirs[$i]" ];
 		$object->[$k][1] = [];
-		$object->[$k][1] = [] unless $self->read_tree( $object->[$k][1], $dir.'/'.$dirs[$i], $level + 1, $nr_of_dir );
+		$object->[$k][1] = [] unless $self->read_tree( $object->[$k][1], $dir.'/'.$dirs[$i], $level + 1, $nr_of_dir, $ext_exclude, $dir_exclude );
 		$object->[$k][2] = $self->{expanded}->{"$dir/$dirs[$i]"}||0;
 		$self->{listdim} ++;
 		$self->{list}->[ $self->{listdim} ] = $object->[$k][0];
@@ -609,9 +603,7 @@ sub read_tree {
 	}
 	return $k;
 }
-
 ################################################################################
-
 sub read_dir {
 	my ( $self, $dir, $type, $nr_of_dir ) = @_;
 	my @contents;
@@ -626,12 +618,15 @@ sub read_dir {
 		if ( $contents[$i] ne '.' && $contents[$i] ne '..' ) {
 			if ( -d $dir.'/'.$contents[$i] ) {
 				push @result, $contents[$i]
-
 					if $type eq 'dir' &&
-						( -f $dir.'/'.$contents[$i].'/.exists'
-							|| $self->{global}->{GLOBAL}->{search_directories} =~ /all/i
+						(	$contents[$i] =~ /$self->{global}->{DIRECTORY}->{"directories_$nr_of_dir"}/i
 							|| $self->{global}->{DIRECTORY}->{"directories_$nr_of_dir"} =~ /all/i
 						);
+#						( -f $dir.'/'.$contents[$i].'/.exists'
+#							|| $contents[$i] =~ /$self->{global}->{DIRECTORY}->{"directories_$nr_of_dir"}/i
+#							|| $self->{global}->{DIRECTORY}->{"directories_$nr_of_dir"} =~ /all/i
+#							|| $self->{global}->{GLOBAL}->{search_directories} =~ /all/i
+#						);
 			} else {
 				$contents[$i] =~  /\.(\w+)$/;
 				my $ext = lc($1);
@@ -639,26 +634,22 @@ sub read_dir {
 				push @result, $contents[$i] if
 					$type eq 'file' &&
 					(	$self->{global}->{DIRECTORY}->{"extensions_$nr_of_dir"} =~ /all/i
-						|| $self->{global}->{DIRECTORY}->{"extensions_$nr_of_dir"} =~ /$ext/i
+						|| $contents[$i] =~ /$self->{global}->{DIRECTORY}->{"extensions_$nr_of_dir"}/i
+#						|| $self->{global}->{DIRECTORY}->{"extensions_$nr_of_dir"} =~ /$ext/i
 					);
 			}
 		}
 	}
 	return @result;
 }
-
 ################################################################################
-
 sub close
 {
 	my ( $self ) = shift;
 	my $nr = 0;
-
 	return 0;
 }
-
 ################################################################################
-
 sub mysort {
 	lc($a) cmp lc($b);
 }
@@ -676,22 +667,21 @@ sub sort_ext {
 	}
 	return @contents;
 }
-
 ################################################################################
-
 sub make_notebook
 {
 	my ( $self ) = shift;
 	my $fontSize = $self->{global}->{GLOBAL}{notebook_fontSize}+0; $fontSize = 10 if $fontSize < 1;
 	my $fontName = $self->{global}->{GLOBAL}{notebook_fontName}||'DejaVu Sans Mono';
+	my $sliderWidth = 4;
 	undef $developer{notes};
 	$developer{notes} = $self->{frame_top}->insert_to_frame (
 		1,
 		'CodeManager::TabbedScrollNotebook' =>
 		tabs	=>	[],
 		place	=>	{
-			x=>0,	relx => 0.5,	width =>-10,	relwidth  => 1,
-			y=>0,	rely => 0.5,	height=>-10,	relheight => 1,
+			x=>0,	relx => 0.5,	width =>-6,	relwidth  => 1,
+			y=>0,	rely => 0.5,	height=>-6,	relheight => 1,
 		},
 		colored	=>	1,
 		enabled	=>	1,
@@ -703,6 +693,12 @@ sub make_notebook
 		},
 		orientation		=>	tno::Top,
 		borderWidth		=>	1,
+		backColor		=>	$self->licz_kolor( 0xffffff, $project_color, 0.5 ),
+		arrangement		=>	fra::Vertical,
+		size			=>	[$self->{mw}-> size],
+		origin			=>	[0,0],
+#		frameSizes		=>	[qw(3% *)],
+		opaqueResize	=>	1,
 	);
 #	for ( my $page = 0; $page < $file_number; $page++ ) {
 #		Prima::Notebook::delete_page( $developer{notes}, $page, 1 ) ;
@@ -712,9 +708,7 @@ sub make_notebook
 	$developer{notes}->set_tabs( @list_of_files );
 	$developer{notes}->repaint;
 }
-
 ################################################################################
-
 sub popup_show
 {
 	my ( $self, $tree, $clicked ) = @_;
@@ -729,8 +723,8 @@ sub popup_show
 	while ( my $key = $_[$i] ) { $par{$key} = $_[$i+1]; $i += 2 }
 	$par{left}   = 0 unless $par{left};
 	$par{bottom} = 0 unless $par{bottom};
-	$par{width}  = 550;
-	$par{height} = 160;
+	$par{width}  = 540;
+	$par{height} = 200;
 	my $x = [$self->{mw}->origin]->[0] + [$self->{frame_left}->pointerPos]->[0];
 	my $y = [$self->{mw}->origin]->[1] + [$self->{frame_left}->pointerPos]->[1] - $par{height} + $par{itemHeight};
 	my $tmp_popup = Prima::Dialog-> create(
@@ -738,8 +732,8 @@ sub popup_show
 		text		=> $par{title},
 		origin		=> [ $x,          $y ],
 		size		=> [ $par{width}, $par{height} ],
-		borderIcons	=> 0,
-		borderStyle	=> bs::None,
+#		borderIcons	=> 0,
+#		borderStyle	=> bs::None,
 		backColor	=> $self->licz_kolor( 0xffffff, $project_color, 0.5, 0 ),
 		onPaint => sub {
 			my ( $this, $canvas) = @_;
@@ -764,10 +758,9 @@ sub popup_show
 			]);
 		},
 	);
-
 	$tmp_popup->insert( Label =>
 		origin	=>	[ 10, $par{height} - 30 ],
-		size	=>	[ $par{width} - 20, 20 ],
+		size	=>	[ $par{width} - 20,  20 ],
 		text	=>	$name,
 		flat	=>	1,
 		x_centered	=> 1,
@@ -776,7 +769,6 @@ sub popup_show
 		borderWidth	=>	1,
 		font 		=>	{	size	=>	10,	style	=>	fs::Normal,	},
 	);
-
 	$tmp_popup->insert( Button =>
 		origin		=>	[ 10, 10 ],
 		size		=>	[ 80, 20 ],
@@ -795,10 +787,10 @@ sub popup_show
 	);
 #----------------------------------------------------------------
 	my $input = $tmp_popup-> insert( InputLine =>
-		origin	=>	[  10, 100 ],
-		size	=>	[ 280,  20 ],
-		text	=>	$name,
-		flat	=>	0,
+		origin		=>	[  10,  $par{height} -55 ],
+		size		=>	[ 280,  20 ],
+		text		=>	$name,
+		flat		=>	0,
 		alignment	=>	ta::Left,
 		color		=>	0x000000,
 		borderWidth	=>	1,
@@ -825,7 +817,7 @@ sub popup_show
 		}
 	}
 	my $check1 = $tmp_popup-> insert( ComboBox =>
-		origin		=>	[  10,  78 ],
+		origin		=>	[  10,  $par{height} -80 ],
 		size		=>	[ 280,  20 ],
 		style		=>	(cs::DropDownList),
 		items		=>	[( @template_names )],
@@ -837,7 +829,7 @@ sub popup_show
 	);
 #-------------------------------------------------------------
 	$tmp_popup-> insert( Button =>
-		origin		=>	[ 300, 100 ],
+		origin		=>	[ 300, $par{height} - 55 ],
 		size		=>	[ 230,  20 ],
 		text		=>	'Insert',
 		enabled		=>	1,
@@ -860,17 +852,7 @@ sub popup_show
 						}
 					}
 				}
-=pod
-				my @lista = @{$self->{list}};
-				for ( my $i=0; $i < @lista; $i++ ) {
-					if ( "$dir/$name" eq $lista[$i]->[4] && $lista[$i]->[3] eq '' ) {
-						if ( $input-> text eq $lista[$i]->[0] ) {
-							$go = 0;
-							last;
-						}
-					}
-				}
-=cut
+
 				if ( $go ) {
 					my $tmp_name = "$name/";
 					$tmp_name = '' unless $level;
@@ -897,7 +879,7 @@ sub popup_show
 	);
 #-------------------------------------------------------------
 	$tmp_popup->insert( Button =>
-		origin		=>	[ 300,  75 ],
+		origin		=>	[ 300,  $par{height} - 80 ],
 		size		=>	[ 230,  20 ],
 		text		=>	'Update',
 		enabled		=>	1,
@@ -931,7 +913,71 @@ sub popup_show
 	);
 #-------------------------------------------------------------
 	$tmp_popup->insert( Button =>
-		origin		=>	[ 300,  50 ],
+		origin		=>	[ 300,  $par{height} -105 ],
+		size		=>	[ 230,  20 ],
+		text		=>	'Backup',
+		enabled		=>	1,
+		flat		=>	0,
+		color		=>	0x000000,
+		borderWidth	=>	1,
+		borderColor =>	0xffffff,
+		backColor	=>	$self->licz_kolor( 0xffffff, $project_color, 0.8, 0 ),
+		font 		=>	{	size	=>	9,	style	=>	fs::Normal,	},
+		onClick		=>	sub {
+			my $info = $self-> make_object (
+				action	=>	'Backup',
+				name	=>	"$dir/".$name,
+				branch	=>	$bra,
+			);
+			if ( $info eq 'OK' ) {
+				my ( $x, $l ) = $tree-> get_item( $tree-> focusedItem );
+				$tree-> delete_item ( $x );
+				$tmp_popup->close();
+				undef $popup ;
+			} else {
+				Prima::message ( $info );
+			}
+		},
+	);
+#-------------------------------------------------------------
+	$tmp_popup->insert( Button =>
+		origin		=>	[ 300,  $par{height} -130 ],
+		size		=>	[ 230,  20 ],
+		text		=>	'Copy',
+		enabled		=>	1,
+		flat		=>	0,
+		color		=>	0x000000,
+		borderWidth	=>	1,
+		borderColor =>	0xffffff,
+		backColor	=>	$self->licz_kolor( 0xffffff, $project_color, 0.8, 0 ),
+		font 		=>	{	size	=>	9,	style	=>	fs::Normal,	},
+		onClick		=>	sub {
+			if ( $input->text eq '' ) {
+				Prima::message ( "No name!" );
+			} elsif ( $input->text eq $name ) {
+				Prima::message ( "The same name!" );
+			} else {
+				my $info = $self-> make_object (
+					action		=>	'Copy',
+					old_name	=>	"$dir/".$name,
+					name		=>	"$dir/".$input->text,
+					branch		=>	$bra,
+				);
+				if ( $info eq 'OK' ) {
+					$self-> make_tree;
+					$tmp_popup->close();
+					undef $popup ;
+				} else {
+					Prima::message ( $info );
+				}
+			}
+		},
+	);
+
+#-------------------------------------------------------------
+
+	$tmp_popup->insert( Button =>
+		origin		=>	[ 300,  $par{height} -155 ],
 		size		=>	[ 230,  20 ],
 		text		=>	'Delete',
 		enabled		=>	1,
@@ -959,7 +1005,7 @@ sub popup_show
 	);
 #-------------------------------------------------------------
 	$tmp_popup->insert( Button =>
-		origin		=>	[ 300,  20 ],
+		origin		=>	[ 300,  10 ],
 		size		=>	[ 230,  20 ],
 		text		=>	'find files with the text',
 		enabled		=>	1,
@@ -992,11 +1038,10 @@ sub popup_show
 			undef $popup ;
 		},
 	);
+	$tmp_popup->execute;
 	return $tmp_popup;
 }
-
 ########################################################################
-
 sub make_object
 {
 	my ( $self ) = shift;
@@ -1046,32 +1091,70 @@ sub make_object
 				}
 			}
 		}
+	} elsif ( $par{action} eq 'Copy' ) {
+
+		if ( -f $par{old_name} ) {
+
+			eval { fcopy( $par{old_name}, $par{name} ) };
+
+		} elsif ( -d $par{old_name} ) {
+
+			eval { dircopy( $par{old_name}, $par{name} ) } ;
+		}
+
+		return $@ || 'OK';
+
 	} elsif ( $par{action} eq 'Update' ) {
 
-		if ( $ext ) {
+		if ( -f $par{old_name} ) {
+
 			eval { move( $par{old_name}, $par{name} ) };
-		} else {
+
+		} elsif ( -d $par{old_name} ) {
+
 			eval { dirmove( $par{old_name}, $par{name} ) } ;
 		}
+
+		return $@ || 'OK';
+
+	} elsif ( $par{action} eq 'Backup' ) {
+
+		if ( -f $par{name} ) {
+
+			eval { unlink( $par{name}.".~CodeManager" ) };
+			return $@ if $@;
+
+			eval { move( $par{name}, $par{name}.".~CodeManager" ) };
+
+		} elsif ( -d $par{name} ) {
+
+			eval { dirmove( $par{name}, $par{name}.".~CodeManager" ) } ;
+		}
+
 		return $@ || 'OK';
 
 	} elsif ( $par{action} eq 'Delete' ) {
-		if ( $ext ) {
-			eval { unlink( $par{name}.".~CodeManager" ) };
-			return $@ if $@;
-			eval { move( $par{name}, $par{name}.".~CodeManager" ) };
-		} else {
+
+		my $what = Prima::MsgBox::message_box( 'Delete the file?', "Confirm deleting:\n".$par{name}, mb::YesNo );
+
+		return unless $what == 2;
+
+		if ( -f $par{name} ) {
+
+			eval { unlink( $par{name} ) };
+
+		} elsif ( -d $par{name} ) {
+
 			eval { dirmove( $par{name}, $par{name}.".~CodeManager" ) } ;
 		}
+
 		return $@ || 'OK';
 	} else {
 		return "Incorect action: ".$par{action};
 	}
 	return '';
 }
-
 ################################################################################
-
 sub ftt_read_tree {
 	my ( $files_reference, $main, $dir, $exts, $str ) = @_;
 	$dir =~  s/\/$//;
@@ -1087,9 +1170,7 @@ sub ftt_read_tree {
 	}
 	return 'OK';
 }
-
 ##########################################################################
-
 sub ftt_read_dir {
 	my ( $dir, $object, $exts, $str ) = @_;
 	my @names;
@@ -1117,9 +1198,7 @@ sub ftt_read_dir {
 	}
 	return @result;
 }
-
 ##########################################################################
-
 sub ftt_has_feature {
 	my ( $name, $str ) = @_;
 	if ( CORE::open( my $FH, "<$name" )) {
@@ -1131,7 +1210,6 @@ sub ftt_has_feature {
 	}
 	return 0;
 }
-
 ##########################################################################
 
 1;

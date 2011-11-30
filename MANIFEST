@@ -34,6 +34,12 @@ lib/Prima/CodeManager/hilite/hilite_tt.pl
 lib/Prima/CodeManager/hilite/hilite_txt.pl
 lib/Prima/CodeManager/hilite/hilite_xml.pl
 lib/Prima/CodeManager/img/bat.png
+lib/Prima/CodeManager/img/cm.ico
+lib/Prima/CodeManager/img/cm.png
+lib/Prima/CodeManager/img/cm128.png
+lib/Prima/CodeManager/img/cm32.ico
+lib/Prima/CodeManager/img/cm512.png
+lib/Prima/CodeManager/img/cm64.png
 lib/Prima/CodeManager/img/conf.png
 lib/Prima/CodeManager/img/css.png
 lib/Prima/CodeManager/img/dir.png
@@ -62,9 +68,5 @@ lib/Prima/CodeManager/img/tdu.png
 lib/Prima/CodeManager/img/tex.png
 lib/Prima/CodeManager/img/txt.png
 lib/Prima/CodeManager/img/xml.png
-lib/Prima/CodeManager/img/cm.ico
-lib/Prima/CodeManager/img/cm.png
-lib/Prima/CodeManager/img/cm128.png
-lib/Prima/CodeManager/img/cm32.png
-lib/Prima/CodeManager/img/cm64.png
-META.yml                                 Module meta-data (added by MakeMaker)
+META.yml                                 Module YAML meta-data (added by MakeMaker)
+META.json                                Module JSON meta-data (added by MakeMaker)

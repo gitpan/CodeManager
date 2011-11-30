@@ -28,6 +28,7 @@ sub file_new
 sub file_open
 {
 	my ( $self ) = @_;
+
 	my @filtr;
 	push @filtr, [ "All" => "*" ];
 	my @ext = split /\|/, $self->{global}->{extensions};
@@ -57,11 +58,13 @@ sub file_open
 		$self->file_edit( $fn ) if $fn;
 	}
 }
+
 ################################################################################
 
 sub file_edit
 {
 	my ( $self, $file, $branch ) = @_;
+
 	my $ext = '';	$ext = lc($1) if $file =~ /\.(\w+)$/;
 
 	if ( $self->{global}->{EXTERNAL_EDITORS}{$ext} ) {
@@ -106,15 +109,12 @@ sub file_edit
 	}
 
 	my ( $type_dimen, $font_dimen ) = ( 'size', 10 );
-	if ( $self->{global}->{GLOBAL}{editor_fontHeight}
-		&& $self->{global}->{GLOBAL}{editor_fontHeight} > 0
-	) {
+	if ( $self->{global}->{GLOBAL}{editor_fontHeight} && $self->{global}->{GLOBAL}{editor_fontHeight} > 0 )
+	{
 		$type_dimen	= 'height';
 		$font_dimen	=  $self->{global}->{GLOBAL}{editor_fontHeight};
-
-	} elsif ( $self->{global}->{GLOBAL}{editor_fontSize}
-		&& $self->{global}->{GLOBAL}{editor_fontSize} > 0
-	) {
+	} elsif ( $self->{global}->{GLOBAL}{editor_fontSize} && $self->{global}->{GLOBAL}{editor_fontSize} > 0 )
+	{
 		$type_dimen	= 'size';
 		$font_dimen	=  $self->{global}->{GLOBAL}{editor_fontSize};
 	}
@@ -127,22 +127,13 @@ sub file_edit
 	if ( $file && -e $file) {
 		my $encoding = $self->{global}->{DIRECTORY}->{"encoding_$branch"} || $self->{global}->{GLOBAL}->{CodeManager_encoding};
 		$Prima::CodeManager::file_encodings{$file} = $encoding;
-		if ( $encoding ) {
-			if ( CORE::open ( my $FH, "<:encoding($encoding)", $file )) {
-				if ( ! defined read( $FH, $cap, -s $file)) {
-					Prima::MsgBox::message("Cannot read file $file:$!");
-					$file = undef;
-				}
-				CORE::close $FH;
+		my $reading_parameters = $encoding ? ":encoding($encoding)" : '';
+		if ( CORE::open ( my $FH, "<$reading_parameters", $file )) {
+			if ( ! defined read( $FH, $cap, -s $file)) {
+				Prima::MsgBox::message("Cannot read file $file:$!");
+				$file = undef;
 			}
-		} else {
-			if ( CORE::open ( my $FH, "<", $file )) {
-				if ( ! defined read( $FH, $cap, -s $file)) {
-					Prima::MsgBox::message("Cannot read file $file:$!");
-					$file = undef;
-				}
-				CORE::close $FH;
-			}
+			CORE::close $FH;
 		}
 		$cap =~ s/\r//g;
 	}
@@ -273,6 +264,7 @@ sub file_edit
 sub file_close
 {
 	my ( $self ) = ( shift );
+
 	my $nr = $Prima::CodeManager::developer{notes}-> pageIndex;
 	if ( $nr >= 0 ) {
 		if ( $Prima::CodeManager::developer{ "notes_$nr" }-> modified) {
@@ -283,6 +275,7 @@ sub file_close
 			$self-> clear_event, return if mb::Cancel == $r;
 			$self-> clear_event, return unless $self->file_save_batch( $nr );
 		}
+
 		$Prima::CodeManager::developer{notes}-> tabIndex($nr);
 		for ( my $i = $nr; $i < $Prima::CodeManager::developer{notes}->pageCount - 1; $i++ ) {
 			for ( $Prima::CodeManager::developer{notes}-> widgets_from_page( $i ) ) {
@@ -314,10 +307,13 @@ sub file_close
 		$Prima::CodeManager::developer{notes}->repaint;
 	}
 }
+
 ########################################################################################
+
 sub file_save_as
 {
 	my ( $self ) = ( shift );
+
 	my $fn = Prima::save_file();
 	my $ret = 0;
 	my $nr = $Prima::CodeManager::developer{notes}-> pageIndex;
@@ -347,36 +343,51 @@ sub file_save_as
 	}
 	return $ret;
 }
+
 ########################################################################################
+
 sub file_save
 {
 	my ( $self ) = @_;
+
 	my $nr = $Prima::CodeManager::developer{notes}-> pageIndex;
+
 	$self-> file_save_batch ( $nr );
 }
+
 ########################################################################################
+
 sub file_save_batch
 {
-	my ( $self ) = @_;
-	my $nr = $Prima::CodeManager::developer{notes}-> pageIndex;
+	my ( $self, $nr ) = (shift,shift);
+
+	$nr = $Prima::CodeManager::developer{notes}-> pageIndex unless defined $nr;
+
 	my $fn = $Prima::CodeManager::list_of_files[ $nr ];
+
 	$fn =~  s/^\*//;
 	return $self->file_save_as if $fn eq './.Untitled';
+
+	my $white_trimming = $self->{global}->{GLOBAL}{white_trimming} || $Prima::CodeManager::_OS;
+
 	if ( CORE::open my $FH, '>', $fn ) {
 		my $cap = $Prima::CodeManager::developer{ "notes_$nr" }->text();
-		$cap =~ s/[\s\t]+$/\n/mgs;
-#		$cap .= "\n" unless $cap =~ /\n$/s;
+
+		$cap  =~ s/[ \r\t]+$//mgs;
+		$cap .= "\n" unless $cap =~ /\n$/s;
+
+		$cap  =~ s/\n/\r\n/mgs if $white_trimming =~ /windows/;
+
 		my $modified = $self->czas('DD-MM-YYYY h:m:s');
 		my $year_to  = $self->czas('YYYY');
-		$cap =~ s/ +$/ /;
+
 		$cap =~ s/Waldemar Biernacki, (20\d{2})-20\d{2}/Waldemar Biernacki, $1-$year_to/g;
 		$cap =~ s/Last modified \(DMYhms\): [^\$\.]*\./Last modified \(DMYhms\): $modified\./;
 
-		$cap .= "\n";
-		$cap =~ s/\n+$/\n/s;
 		$cap = encode( $Prima::CodeManager::file_encodings{$fn} , $cap ) if $Prima::CodeManager::file_encodings{$fn};
 		my $swr = syswrite( $FH, $cap, length( $cap ));
 		CORE::close $FH;
+
 		unless (defined $swr && $swr == length( $cap )) {
 			undef $cap;
 			unlink $fn;
@@ -384,19 +395,27 @@ sub file_save_batch
 			return 0;
 		}
 		undef $cap;
+
 		$Prima::CodeManager::developer{ "notes_$nr" }->modified(0);
 		$Prima::CodeManager::list_of_files[ $nr ] = $fn;
 		$Prima::CodeManager::developer{notes}->set_tabs( @Prima::CodeManager::list_of_files );
+
 		return 1;
+
 	} else {
+
 		Prima::MsgBox::message_box( $fn, "Cannot save to $fn", mb::Error|mb::OK);
 	}
+
 	return 0;
 }
+
 ################################################################################
+
 sub hilite_open
 {
 	my ( $self ) = @_;
+
 	my $nr  = $Prima::CodeManager::developer{notes}-> pageIndex;
 	my $hfn = '';
 	$hfn = "hilite_$1.pl" if ( $Prima::CodeManager::list_of_files[ $nr ] =~ /\.(\w+)$/ );
@@ -422,7 +441,6 @@ sub show_size
 	$Prima::CodeManager::developer{ "notes_$i" }-> font-> size( $size );
 	$Prima::CodeManager::developer{ "notes_$i" }-> {lineSpace} = $glue;
 	$Prima::CodeManager::developer{ "notes_$i" }-> repaint;
-
 	$Prima::CodeManager::developer{ "numer_$i" }-> font-> size( $size );
 	$Prima::CodeManager::developer{ "numer_$i" }-> {lineSpace} = $glue;
 	$Prima::CodeManager::developer{ "numer_$i" }-> repaint;
@@ -546,9 +564,7 @@ sub find_next
 	return unless $findData;
 	$self-> do_find;
 }
-
 #-------------------------------------------------------------------------------
-
 sub replace
 {
 	my ( $self ) = ( shift );
@@ -556,42 +572,15 @@ sub replace
 	return unless find_dialog(0);
 	$self-> do_find;
 }
-
-########################################################################################
-
-sub old_about {
-	my ( $self ) = ( shift );
-
-	Prima::MsgBox::message_box(
-		"CodeManager - About",
-		"This is CodeManager, ver. $Prima::CodeManager::VERSION - http://CodeManager.sao.pl\n".
-
-		"Copyright 2009-2011 by Waldemar Biernacki, wb\@sao.pl\n".
-		"This library is free software; you can redistribute it\n".
-		"and/or modify it under the same terms as Perl itself.",
-		mb::Ok|mb::Information,
-		font	=> {
-			size=>10,
-		}
-	);
-
-	return
-}
-
 ################################################################################
-
 sub about
 {
 	my ( $self ) = @_;
-
 	my $project_color = 0x0088ff;
-
 	my @dim = ( 360, 170 );
-
 #	my $img = $self-> load_icon( "$::Prima::CodeManager::CodeManager_directory/img/CodeManager64.png" );
-
 	my $tmp_popup = Prima::Dialog-> create(
-		icon => $self-> load_icon( "$::Prima::CodeManager::CodeManager_directory/img/CodeManager32.png" ),
+		icon => $self-> load_icon( "$Prima::CodeManager::CodeManager_directory/img/cm64.png" ),
 		title		=> "CodeManager - About",
 		text		=> "CodeManager - About",
 		size		=>	[ @dim ],
@@ -600,7 +589,6 @@ sub about
 		centered	=>	1,
 #		borderStyle	=> bs::None,
 		backColor	=> $self->licz_kolor( 0xffffff, $project_color, 0.5, 0 ),
-
 		onPaint => sub {
 			my ( $this, $canvas) = @_;
 			$canvas-> clear;
@@ -622,38 +610,31 @@ sub about
 				$this-> width - $margin - 1 - $width,	$this-> height - $margin - 1 - $width,
 				$this-> width - $margin - 1 - $width,	$margin + $width
 			]);
-
 #			$canvas-> put_image( $dim[0]/2-64, $dim[1] - 64 - 10, $img );
-
 		},
 	);
-
 	my $height = 18;
 	$tmp_popup-> insert (
 		Label	=>
-		origin	=>	[ 10, $dim[1]-15 - $height ],
-		size	=>	[ $dim[0]-20, $height ],
-		text	=>	"This is CodeManager, ver. $Prima::CodeManager::VERSION",
-		flat	=>	1,
+		origin		=>	[ 10, $dim[1]-15 - $height ],
+		size		=>	[ $dim[0]-20, $height ],
+		text		=>	"This is CodeManager, ver. $Prima::CodeManager::VERSION",
+		flat		=>	1,
 		x_centered	=> 1,
 		alignment	=>	ta::Center,
 		color		=>	$self->licz_kolor( 0x000000, $project_color, 0.6, 0 ),
 		borderWidth	=>	1,
 		font 		=>	{
 			height	=>	$height,
-
 			style	=>	fs::Bold,
-
 		},
 	);
-
 	my $about = "Copyright 2009-2011 by Waldemar Biernacki\n" .
 		"http://CodeManager.sao.pl\n" .
 		"\n" .
 		"\nLicense statement:\n" .
 		"This library is free software; you can redistribute it\n" .
 		"and/or modify it under the same terms as Perl itself.";
-
 	$tmp_popup->insert( Label =>
 		origin		=>	[ 10, 30 ],
 		size		=>	[ $dim[0] - 20, $dim[1] - 75 ],
@@ -665,7 +646,6 @@ sub about
 		borderWidth	=>	1,
 		font 		=>	{ size=>8, style=>fs::Normal, },
 	);
-
 	$tmp_popup->insert( Button =>
 		origin		=>	[ int($dim[0]/2) - 40, 10 ],
 		size		=>	[ 80, 20 ],
@@ -680,37 +660,21 @@ sub about
 		font 		=>	{	size	=>	9,	style	=>	fs::Normal,	},
 		onClick	=>	sub { $tmp_popup->close; },
 	);
-
 	$tmp_popup->execute;
-
 	return;
 }
-
 1;
-
 __END__
-
 =pod
-
 =head1 NAME
-
-Prima::CodeManager::File
-
+Prima::CodeManager::File - functions to open, read, save and close project files
 =head1 DESCRIPTION
-
 This is part of CodeManager project - not for direct use.
-
 =head1 AUTHOR
-
 Waldemar Biernacki, E<lt>wb@sao.plE<gt>
-
 =head1 COPYRIGHT AND LICENSE
-
 Copyright 2009-2011 by Waldemar Biernacki.
-
 L<http://CodeManager.sao.pl>
-
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.
-
 =cut

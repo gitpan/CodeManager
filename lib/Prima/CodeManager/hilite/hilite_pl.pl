@@ -24,7 +24,8 @@ $main::hilite{rexp_pl} = [
 #	'(=~\s*[ms]{0,1}\/([^\/]*|\/)*\/[^\/]*\/[geix]*)',		{ color => 0x00aaaa,backColor => 0xffdddd,},
 	'(\b(strict|warnings)\b)',								{ color => 0x0000dd,	},
 	'(^=cut)',												{ color => cl::Gray,	},
-	'(__END__)',											{ color => 0xff00ff,	},
+	'(__END__|__DATA__)',									{ color => 0xff00ff,	},
+	'(return)',												{ color => 0xff00ff,	},
 ];
 
 $main::hilite{blok_pl} = [

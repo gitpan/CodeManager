@@ -2,19 +2,14 @@ Prima-CodeManager version 0.01
 ==============================
 
 CodeManager is an application in the form of a Perl module.
-
 The aim of CodeManager is to manage projects with many types source code
-
 files (including exotic or totally independent ones) which are spread over
-
 independent directories.
 
 CodeManager focuses on easy:
 
 -- managing of directories & files structures,
-
 -- preparing code source highlitning patterns
-
 -- writing templates of creating new objects (sub-directories and files)
 
 CodeManager uses excelent Prima libraries and therefore works identically
