@@ -317,7 +317,7 @@ Waldemar Biernacki, E<lt>wb@sao.plE<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright 2009-2011 by Waldemar Biernacki.
+Copyright 2009-2012 by Waldemar Biernacki.
 
 L<http://CodeManager.sao.pl>
 

@@ -618,7 +618,7 @@ sub about
 		Label	=>
 		origin		=>	[ 10, $dim[1]-15 - $height ],
 		size		=>	[ $dim[0]-20, $height ],
-		text		=>	"This is CodeManager, ver. $Prima::CodeManager::VERSION",
+		text		=>	"This is CodeManager, ver. $Prima::CodeManager::CodeManager::VERSION",
 		flat		=>	1,
 		x_centered	=> 1,
 		alignment	=>	ta::Center,
@@ -629,7 +629,7 @@ sub about
 			style	=>	fs::Bold,
 		},
 	);
-	my $about = "Copyright 2009-2011 by Waldemar Biernacki\n" .
+	my $about = "Copyright 2009-2012 by Waldemar Biernacki\n" .
 		"http://CodeManager.sao.pl\n" .
 		"\n" .
 		"\nLicense statement:\n" .
@@ -673,7 +673,7 @@ This is part of CodeManager project - not for direct use.
 =head1 AUTHOR
 Waldemar Biernacki, E<lt>wb@sao.plE<gt>
 =head1 COPYRIGHT AND LICENSE
-Copyright 2009-2011 by Waldemar Biernacki.
+Copyright 2009-2012 by Waldemar Biernacki.
 L<http://CodeManager.sao.pl>
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.

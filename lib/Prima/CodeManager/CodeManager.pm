@@ -1,7 +1,7 @@
 
 package Prima::CodeManager::CodeManager;
 
-our $VERSION  = '0.02';
+our $VERSION  = '0.03';
 
 1;
 
@@ -219,7 +219,7 @@ sub new
 #				['Re~place pages'	=> 'Ctrl+L'			=> '^L'		=> sub { $this-> file_replace }],
 			]],
 			[ '~Help' => [
-				["~About ver. $VERSION"	=> sub { $this-> about }],
+				["~About ver. $Prima::CodeManager::CodeManager::VERSION" => sub { $this-> about }],
 			]],
 		],
 		onClose		=>	sub {
@@ -1297,7 +1297,7 @@ Waldemar Biernacki, E<lt>wb@sao.plE<gt>
 
 =head1 COPYRIGHT
 
-Copyright 2009-2011 by Waldemar Biernacki.
+Copyright 2009-2012 by Waldemar Biernacki.
 
 =head1 LICENSE
 

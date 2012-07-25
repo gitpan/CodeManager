@@ -23,4 +23,4 @@ requires:
   File::HomeDir: 0.86
   File::Path: 2.07
   Prima: 1.29
-version: 0.02
+version: 0.03

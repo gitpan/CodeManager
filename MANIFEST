@@ -11,10 +11,13 @@ lib/Prima/CodeManager/Label.pm
 lib/Prima/CodeManager/Misc.pm
 lib/Prima/CodeManager/Notebooks.pm
 lib/Prima/CodeManager/Outlines.pm
+lib/Prima/CodeManager/hilite/hilite_bash.pl
+lib/Prima/CodeManager/hilite/hilite_bat.pl
 lib/Prima/CodeManager/hilite/hilite_bin.pl
 lib/Prima/CodeManager/hilite/hilite_cm.pl
 lib/Prima/CodeManager/hilite/hilite_conf.pl
 lib/Prima/CodeManager/hilite/hilite_css.pl
+lib/Prima/CodeManager/hilite/hilite_csv.pl
 lib/Prima/CodeManager/hilite/hilite_dic.pl
 lib/Prima/CodeManager/hilite/hilite_dtl.pl
 lib/Prima/CodeManager/hilite/hilite_hs.pl
@@ -33,11 +36,13 @@ lib/Prima/CodeManager/hilite/hilite_tex.pl
 lib/Prima/CodeManager/hilite/hilite_tt.pl
 lib/Prima/CodeManager/hilite/hilite_txt.pl
 lib/Prima/CodeManager/hilite/hilite_xml.pl
+lib/Prima/CodeManager/img/bash.png
 lib/Prima/CodeManager/img/bat.png
 lib/Prima/CodeManager/img/cm.ico
 lib/Prima/CodeManager/img/cm.png
 lib/Prima/CodeManager/img/cm128.png
 lib/Prima/CodeManager/img/cm32.ico
+lib/Prima/CodeManager/img/cm32.png
 lib/Prima/CodeManager/img/cm512.png
 lib/Prima/CodeManager/img/cm64.png
 lib/Prima/CodeManager/img/conf.png

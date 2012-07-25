@@ -1,4 +1,4 @@
-Prima-CodeManager version 0.01
+Prima-CodeManager version 0.03
 ==============================
 
 CodeManager is an application in the form of a Perl module.
@@ -48,6 +48,11 @@ To install this module type the following:
    make test
    make install
 
+Run CodeManager with the command:
+
+	perl CodeManager.pl
+
+
 DEPENDENCIES
 
 This module requires these other modules and libraries:
@@ -60,7 +65,7 @@ File::HomeDir 0.86
 
 COPYRIGHT AND LICENSE
 
-Copyright (C) 2009-2011 by Waldemar Biernacki (wb@sao.pl).
+Copyright (C) 2009-2012 by Waldemar Biernacki (wb@sao.pl).
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself, either Perl version 5.10.1 or,
