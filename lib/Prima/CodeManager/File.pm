@@ -1,3 +1,15 @@
+################################################################################
+# This is CodeManager
+# Copyright 2009-2013 by Waldemar Biernacki
+# http://codemanager.sao.pl\n" .
+#
+# License statement:
+#
+# This program/library is free software; you can redistribute it
+# and/or modify it under the same terms as Perl itself.
+#
+# Last modified (DMYhms): 13-01-2013 09:41:56.
+################################################################################
 
 package Prima::CodeManager::File;
 
@@ -43,10 +55,10 @@ sub file_open
 		$file_name = $3;
 	}
 	my $open = Prima::OpenDialog-> new(
-		filter => [ @filtr ],
-		directory => $dire_name,
-		fileName  => $file_name,
-		system => 0,
+		filter		=> [ @filtr ],
+		directory	=> $dire_name,
+		fileName	=> $file_name,
+		system		=> 0,
 		font => {
 			name	=>	'DejaVu Sans Mono',
 			size	=>	9,
@@ -55,7 +67,7 @@ sub file_open
 	);
 	if ( $open-> execute() ) {
 		my $fn = $open-> fileName();
-		$self->file_edit( $fn ) if $fn;
+		$self-> file_edit( $fn ) if -f $fn;
 	}
 }
 
@@ -109,12 +121,13 @@ sub file_edit
 	}
 
 	my ( $type_dimen, $font_dimen ) = ( 'size', 10 );
-	if ( $self->{global}->{GLOBAL}{editor_fontHeight} && $self->{global}->{GLOBAL}{editor_fontHeight} > 0 )
-	{
+	if ( $self->{global}->{GLOBAL}{editor_fontHeight} && $self->{global}->{GLOBAL}{editor_fontHeight} > 0 ) {
+
 		$type_dimen	= 'height';
 		$font_dimen	=  $self->{global}->{GLOBAL}{editor_fontHeight};
-	} elsif ( $self->{global}->{GLOBAL}{editor_fontSize} && $self->{global}->{GLOBAL}{editor_fontSize} > 0 )
-	{
+
+	} elsif ( $self->{global}->{GLOBAL}{editor_fontSize} && $self->{global}->{GLOBAL}{editor_fontSize}> 0 ) {
+
 		$type_dimen	= 'size';
 		$font_dimen	=  $self->{global}->{GLOBAL}{editor_fontSize};
 	}
@@ -135,7 +148,8 @@ sub file_edit
 			}
 			CORE::close $FH;
 		}
-		$cap =~ s/\r//g;
+		$cap =~ s/\r\n/\n/g;
+		$cap =~ s/\r/\n/g;
 	}
 	my $type = 'nil';
 	$type = lc($1) if $file =~ /\.(\w+)$/;
@@ -149,8 +163,19 @@ sub file_edit
 		$::hilite{"blok_$type"} = [] unless $::hilite{"blok_$type"};
 #	}
 	push @Prima::CodeManager::list_of_files, ( $short_file );
+#	$Prima::CodeManager::info_of_files{$file}->{backColor} =
+#		$Prima::CodeManager::warpColors[ $Prima::CodeManager::file_number % scalar @Prima::CodeManager::warpColors ];
+
 	$Prima::CodeManager::info_of_files{$file}->{backColor} =
-		$Prima::CodeManager::warpColors[ $Prima::CodeManager::file_number % scalar @Prima::CodeManager::warpColors ];
+			Prima::CodeManager::Misc::angle_color(undef,int(rand(360)), 250,150 );
+
+#		Prima::CodeManager::Misc::licz_kolor (
+#			undef,
+#			0xffffff,
+#			Prima::CodeManager::Misc::angle_color(undef,int(rand(360)), 255, 200 ),
+#			0
+#		);
+
 	$Prima::CodeManager::file_number++;
 	my $pageCount = $Prima::CodeManager::developer{notes}->pageCount;
 	$pageCount    = 0 unless $pageCount;
@@ -217,10 +242,61 @@ sub file_edit
 		font => {
 			name	=>	$self->{global}->{GLOBAL}{editor_fontName},
 			$type_dimen	=>	$font_dimen,
-#			size	=>	$fontSize,
 			style	=>	fs::Normal,
 		},
 	);
+=pod
+	{
+		my $ite = 0;
+		my $ope = 0;
+		my $lev = 0;
+		my $clo = 0;
+		while ( $cap =~ /^(.*)$/mg ) {
+			my $row = $1||'';
+			$row .= '.';
+			$ope = -1 + scalar @{[(split '{', $row)]};
+			$lev = $lev + $ope - $clo;
+			$Prima::CodeManager::developer{ "block_$pageCount-ope" }->[$ite] = $ope;
+			$Prima::CodeManager::developer{ "block_$pageCount-lev" }->[$ite] = $lev;
+			$Prima::CodeManager::developer{ "block_$pageCount-clo" }->[$ite] = $clo;
+			$clo = -1 + scalar @{[(split '}', $row)]};
+			$ite++;
+		}
+	}
+
+	{
+		my $ite = 0;
+		my $lev = 0;
+		while ( $cap =~ /^(=*)(\w*)/mg ) {
+			if ( $1 eq '=' && $2 || $lev ) {
+				$lev = 1 if $lev || $2 ne 'cut';
+				$Prima::CodeManager::developer{ "comme_$pageCount" }->[$ite] = 1 if $lev;
+				$lev = 0 if $2 eq 'cut';
+			}
+			$ite++;
+		}
+	}
+
+	$Prima::CodeManager::developer{ "block_$pageCount" } = $Prima::CodeManager::developer{notes}->insert_to_page(
+		$pageCount,
+		'CodeManager::Label'	=>
+		text			=>	"1\n2\n3\n4\n5\n6\n7",
+		backColor		=>	$kolor_paska,
+		borderWidth		=>	1,
+		lineSpace		=>	$self->{global}->{GLOBAL}{editor_lineSpace},
+		alignment		=>	ta::Right,
+		place => {
+			x => 51,	relx => 0,		width  =>18,	relwidth  => 0,
+			y => 0,		rely => 0.5,	height =>0,		relheight => 1,
+		},
+		font => {
+			name	=>	$self->{global}->{GLOBAL}{editor_fontName},
+			$type_dimen	=>	$font_dimen,
+			style	=>	fs::Normal,
+		},
+	);
+=cut
+
 	$Prima::CodeManager::developer{ "notes_$pageCount" } = $Prima::CodeManager::developer{notes}->insert_to_page(
 		$pageCount,
 		'CodeManager::Edit'	=>
@@ -235,7 +311,7 @@ sub file_edit
 		hiliteCase		=>	$::hilite{"case_$type"},
 		hiliteStyl		=>	$::hilite{"styl_$type"},
 		hiliteBlok		=>	$::hilite{"blok_$type"},
-		exportHTML		=>  0,
+		exportHTML		=>	0,
 		backColor		=>	$self->{global}->{GLOBAL}{editor_backColor},
 		borderWidth		=>	0,
 		cursorWrap		=>	1,
@@ -254,9 +330,11 @@ sub file_edit
 			style	=>	fs::Normal,
 		},
 	);
+
 	$Prima::CodeManager::info_of_files{$file}->{exists} = 1;
 	$Prima::CodeManager::developer{notes}-> tabIndex($pageCount);
 	$Prima::CodeManager::developer{"notes_$pageCount"}-> focus;
+
 }
 
 ########################################################################################
@@ -304,44 +382,8 @@ sub file_close
 		delete $Prima::CodeManager::info_of_files{ $Prima::CodeManager::list_of_files[$nr] };
 		splice( @Prima::CodeManager::list_of_files, $nr, 1 );
 		$Prima::CodeManager::developer{notes}-> set_tabs( @Prima::CodeManager::list_of_files );
-		$Prima::CodeManager::developer{notes}->repaint;
+		$Prima::CodeManager::developer{notes}-> repaint;
 	}
-}
-
-########################################################################################
-
-sub file_save_as
-{
-	my ( $self ) = ( shift );
-
-	my $fn = Prima::save_file();
-	my $ret = 0;
-	my $nr = $Prima::CodeManager::developer{notes}-> pageIndex;
-	if ( defined $fn ) {
-		SAVE:
-		while(1) {
-			next SAVE unless CORE::open my $FH, '>', $fn;
-			my $cap = $Prima::CodeManager::developer{ "notes_$nr" }->text();
-			$cap =~ s/ +$/ /;
-			my $swr = syswrite( $FH, $cap,length($cap));
-			CORE::close $FH;
-			unless ( defined $swr && $swr == length($cap)) {
-				undef $cap;
-				unlink $fn;
-				next SAVE;
-			}
-			undef $cap;
-			$Prima::CodeManager::developer{ "notes_$nr" }->modified(0);
-			$Prima::CodeManager::list_of_files[ $nr ] = $fn;
-			$Prima::CodeManager::developer{notes}->set_tabs( @Prima::CodeManager::list_of_files );
-			$ret = 1;
-			last;
-		} continue {
-			last SAVE unless
-				mb::Retry == Prima::MsgBox::message_box( $fn, "Cannot save to $fn", mb::Error|mb::Retry|mb::Cancel );
-		}
-	}
-	return $ret;
 }
 
 ########################################################################################
@@ -357,12 +399,74 @@ sub file_save
 
 ########################################################################################
 
+sub file_save_as
+{
+	my ( $self ) = ( shift );
+
+	my $nr = $Prima::CodeManager::developer{notes}-> pageIndex;
+	my $dire_name = '.';
+	my $file_name = $Prima::CodeManager::list_of_files[ $nr ] || '';
+	if ( $file_name =~ /^(.*)([\\\/]+)([^\\\/]*)$/ ) {
+		$dire_name = $1;
+		$file_name = $3;
+	}
+	my $fn = Prima::save_file(
+		directory	=> $dire_name,
+		fileName	=> $file_name,
+		system		=> 0,
+		font => {
+			name	=>	'DejaVu Sans Mono',
+			size	=>	9,
+			style	=>	fs::Normal,
+		},
+	);
+	my $ret = 0;
+	if ( defined $fn ) {
+		SAVE:
+		while(1) {
+			next SAVE unless CORE::open my $FH, '>', $fn;
+			my $white_trimming = $self->{global}->{GLOBAL}{white_trimming} || $Prima::CodeManager::_OS;
+			my $cap = $Prima::CodeManager::developer{ "notes_$nr" }->text();
+			$cap  =~ s/[ \r\t]+$//mgs;
+			$cap .= "\n" unless $cap =~ /\n$/s;
+			$cap  =~ s/\n/\r\n/mgs if $white_trimming =~ /windows/;
+
+			my $modified= $self->czas('DD-MM-YYYY h:m:s');
+			my $year_to	= $self->czas('YYYY');
+			my $today	= $self->czas('DD-MM-YYYY');
+			$cap =~ s/Waldemar Biernacki, (20\d{2})-20\d{2}/Waldemar Biernacki, $1-$year_to/g;
+			$cap =~ s/Last modified \(DMYhms\): [^\$\.]*\./Last modified \(DMYhms\): $modified\./;
+			$cap =~ s/This version date: \d{2}-\d{2}-\d{4}/This version date: $today/;
+			$cap = encode( $Prima::CodeManager::file_encodings{$fn} , $cap ) if $Prima::CodeManager::file_encodings{$fn};
+			my $swr = syswrite( $FH, $cap,length($cap));
+			CORE::close $FH;
+
+			unless ( defined $swr && $swr == length($cap)) {
+				undef $cap;
+				unlink $fn;
+				next SAVE;
+			}
+			undef $cap;
+			$Prima::CodeManager::developer{ "notes_$nr" }-> modified(0);
+			$Prima::CodeManager::list_of_files[ $nr ] = $fn;
+			$Prima::CodeManager::developer{notes}-> set_tabs( @Prima::CodeManager::list_of_files );
+			$Prima::CodeManager::developer{notes}-> repaint;
+			$ret = 1;
+			last;
+		} continue {
+			last SAVE unless
+				mb::Retry == Prima::MsgBox::message_box( $fn, "Cannot save to $fn", mb::Error|mb::Retry|mb::Cancel );
+		}
+	}
+	return $ret;
+}
+
+########################################################################################
+
 sub file_save_batch
 {
 	my ( $self, $nr ) = (shift,shift);
-
 	$nr = $Prima::CodeManager::developer{notes}-> pageIndex unless defined $nr;
-
 	my $fn = $Prima::CodeManager::list_of_files[ $nr ];
 
 	$fn =~  s/^\*//;
@@ -372,18 +476,16 @@ sub file_save_batch
 
 	if ( CORE::open my $FH, '>', $fn ) {
 		my $cap = $Prima::CodeManager::developer{ "notes_$nr" }->text();
-
 		$cap  =~ s/[ \r\t]+$//mgs;
 		$cap .= "\n" unless $cap =~ /\n$/s;
-
 		$cap  =~ s/\n/\r\n/mgs if $white_trimming =~ /windows/;
 
 		my $modified = $self->czas('DD-MM-YYYY h:m:s');
 		my $year_to  = $self->czas('YYYY');
-
+		my $today    = $self->czas('DD-MM-YYYY');
 		$cap =~ s/Waldemar Biernacki, (20\d{2})-20\d{2}/Waldemar Biernacki, $1-$year_to/g;
-		$cap =~ s/Last modified \(DMYhms\): [^\$\.]*\./Last modified \(DMYhms\): $modified\./;
-
+		$cap =~ s/Last modified \(DMYhms\): [^\$\.]*\./Last modified \(DMYhms\): $modified\./g;
+		$cap =~ s/This version date: \d{2}-\d{2}-\d{4}/This version date: $today/g;
 		$cap = encode( $Prima::CodeManager::file_encodings{$fn} , $cap ) if $Prima::CodeManager::file_encodings{$fn};
 		my $swr = syswrite( $FH, $cap, length( $cap ));
 		CORE::close $FH;
@@ -396,9 +498,9 @@ sub file_save_batch
 		}
 		undef $cap;
 
-		$Prima::CodeManager::developer{ "notes_$nr" }->modified(0);
+		$Prima::CodeManager::developer{ "notes_$nr" }-> modified(0);
 		$Prima::CodeManager::list_of_files[ $nr ] = $fn;
-		$Prima::CodeManager::developer{notes}->set_tabs( @Prima::CodeManager::list_of_files );
+		$Prima::CodeManager::developer{notes}-> set_tabs( @Prima::CodeManager::list_of_files );
 
 		return 1;
 
@@ -426,26 +528,34 @@ sub hilite_open
 	);
 	edit( $fn ) if $fn;
 }
+
 ########################################################################################
+
 sub show_size
 {
 	my ( $self, $size, $glue ) = @_;
 	return unless $size == 1 || $size == 0 || $size == -1;
 	return unless $glue == 1 || $glue == 0 || $glue == -1;
-	return if $size == 0 && $glue == 0;
+	return unless $size != 0 || $glue != 0;
+
 	my $i = $Prima::CodeManager::developer{notes}-> pageIndex;
+
 	$size = $Prima::CodeManager::developer{ "notes_$i" }-> font-> size + $size;
 	$size = 1 if $size < 1;
 	$glue = $Prima::CodeManager::developer{ "notes_$i" }-> {lineSpace} + $glue;
-	$glue = 1-$size if $glue < 1-$size;
+	$glue = 1 - $size if $glue < 1 - $size;
+
 	$Prima::CodeManager::developer{ "notes_$i" }-> font-> size( $size );
 	$Prima::CodeManager::developer{ "notes_$i" }-> {lineSpace} = $glue;
 	$Prima::CodeManager::developer{ "notes_$i" }-> repaint;
+
 	$Prima::CodeManager::developer{ "numer_$i" }-> font-> size( $size );
 	$Prima::CodeManager::developer{ "numer_$i" }-> {lineSpace} = $glue;
 	$Prima::CodeManager::developer{ "numer_$i" }-> repaint;
 }
+
 ########################################################################################
+
 sub show_tab
 {
 	my ( $self, $step ) = @_;
@@ -455,11 +565,22 @@ sub show_tab
 	$next = $Prima::CodeManager::developer{notes}-> pageCount - 1 if $next < 0;
 	$Prima::CodeManager::developer{notes}-> tabIndex($next);
 }
+
+########################################################################################
+
+sub jump
+{
+	my ( $self ) = ( shift );
+#	my $this = $Prima::CodeManager::developer{ "notes_".$Prima::CodeManager::developer{notes}->pageIndex };
+#	undef $self-> {findData};
+	$self-> find_dialog( 1 );
+	$self-> do_find;
+}
 ########################################################################################
 sub find
 {
 	my ( $self ) = ( shift );
-	my $this = $Prima::CodeManager::developer{ "notes_".$Prima::CodeManager::developer{notes}->pageIndex };
+#	my $this = $Prima::CodeManager::developer{ "notes_".$Prima::CodeManager::developer{notes}->pageIndex };
 #	undef $self-> {findData};
 	$self-> find_dialog( 1 );
 	$self-> do_find;
@@ -618,7 +739,7 @@ sub about
 		Label	=>
 		origin		=>	[ 10, $dim[1]-15 - $height ],
 		size		=>	[ $dim[0]-20, $height ],
-		text		=>	"This is CodeManager, ver. $Prima::CodeManager::CodeManager::VERSION",
+		text		=>	"This is CodeManager, ver. $Prima::CodeManager::VERSION",
 		flat		=>	1,
 		x_centered	=> 1,
 		alignment	=>	ta::Center,
@@ -629,11 +750,11 @@ sub about
 			style	=>	fs::Bold,
 		},
 	);
-	my $about = "Copyright 2009-2012 by Waldemar Biernacki\n" .
-		"http://CodeManager.sao.pl\n" .
+	my $about = "Copyright 2009-2013 by Waldemar Biernacki\n" .
+		"http://codemanager.sao.pl\n" .
 		"\n" .
 		"\nLicense statement:\n" .
-		"This library is free software; you can redistribute it\n" .
+		"This program/library is free software; you can redistribute it\n" .
 		"and/or modify it under the same terms as Perl itself.";
 	$tmp_popup->insert( Label =>
 		origin		=>	[ 10, 30 ],
@@ -665,16 +786,26 @@ sub about
 }
 1;
 __END__
+
 =pod
+
 =head1 NAME
+
 Prima::CodeManager::File - functions to open, read, save and close project files
+
 =head1 DESCRIPTION
+
 This is part of CodeManager project - not for direct use.
+
 =head1 AUTHOR
+
 Waldemar Biernacki, E<lt>wb@sao.plE<gt>
+
 =head1 COPYRIGHT AND LICENSE
-Copyright 2009-2012 by Waldemar Biernacki.
-L<http://CodeManager.sao.pl>
+
+Copyright 2009-2013 by Waldemar Biernacki.
+L<http://codemanager.sao.pl>
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.
+
 =cut

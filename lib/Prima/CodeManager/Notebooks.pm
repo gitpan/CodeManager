@@ -1,3 +1,15 @@
+################################################################################
+# This is CodeManager
+# Copyright 2009-2013 by Waldemar Biernacki
+# http://codemanager.sao.pl\n" .
+#
+# License statement:
+#
+# This program/library is free software; you can redistribute it
+# and/or modify it under the same terms as Perl itself.
+#
+# Last modified (DMYhms): 13-01-2013 09:42:14.
+################################################################################
 
 use strict;
 use warnings;
@@ -28,8 +40,6 @@ use constant DefDeltaX		=>	 3;
 use constant DefDeltaY		=>	 3;
 use constant DefBookmarkX	=>	30;
 use constant DefTabMultiply	=>	1.4;
-
-#my @warpColors = ( 0x50d8f8, 0x80d8a8, 0x8090f8, 0xd0b4a8, 0xf8fca8, 0xa890a8, 0xf89050, 0xf8d850, 0xf8b4a8, 0xf8d8a8, );
 
 #-----------------------------------------------------------------------------------
 
@@ -144,6 +154,9 @@ sub on_mousedown
 {
 	my ( $self, $btn, $mod, $x, $y) = @_;
 	return if $self-> {mouseTransaction};
+
+#print "on_mousedown|@_\n";
+
 	$self-> clear_event;
 	my ( $a, $ww, $ft, $lt) = (
 		$self-> {arrows}, $self-> {widths}, $self-> {firstTab}, $self-> {lastTab}
@@ -200,6 +213,7 @@ sub on_mouseup
 {
 	my ( $self, $btn, $mod, $x, $y) = @_;
 	return unless $self-> {mouseTransaction};
+#print "on_mouseup|@_\n";
 
 	$self-> capture(0);
 	$self-> scroll_timer_stop;
@@ -228,7 +242,10 @@ sub on_mouseclick
 	$self-> clear_event;
 	return unless pop;
 
-	$self-> clear_event unless $self-> notify( "MouseDown", @_);
+#print "on_mouseclick|@_\n";
+	$main::project-> file_close if $_[0] == mb::Right;
+
+#	$self-> clear_event unless $self-> notify( "MouseDown", @_);
 }
 
 #-----------------------------------------------------------------------------------
@@ -429,11 +446,7 @@ sub on_drawtab
 	my $color = $Prima::CodeManager::info_of_files{$name}->{backColor};
 
 	$canvas-> color(( $self-> {colored} && ( $i >= 0)) ? $color : $$clr[1]);
-#	$canvas-> color(( $self-> {colored} && ( $i >= 0)) ?
-#		( $warpColors[ $i % scalar @warpColors]) : $$clr[1]);
-
 	$canvas-> fillpoly( $poly);
-#	$canvas-> fillpoly( $poly2) if $poly2;
 
 	$canvas-> color( $$clr[3]);
 	$canvas-> polyline([

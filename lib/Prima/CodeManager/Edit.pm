@@ -1,3 +1,16 @@
+################################################################################
+# This is CodeManager
+# Copyright 2009-2013 by Waldemar Biernacki
+# http://codemanager.sao.pl\n" .
+#
+# License statement:
+#
+# This program/library is free software; you can redistribute it
+# and/or modify it under the same terms as Perl itself.
+#
+# Last modified (DMYhms): 13-01-2013 09:41:52.
+################################################################################
+
 use strict;
 use warnings;
 
@@ -185,7 +198,7 @@ sub profile_check_in
 		$p-> {selStart} = [$$s[0], $$s[1]];
 		$p-> {selEnd  } = [$$s[2], $$s[3]];
 	}
-	$p-> { text} = '' if exists( $p-> { textRef});
+	$p-> { text} = '' if exists( $p-> {textRef});
 	$p-> {autoHScroll} = 0 if exists $p-> {hScroll};
 	$p-> {autoVScroll} = 0 if exists $p-> {vScroll};
 }
@@ -230,10 +243,46 @@ sub init
 	$self-> reset_scrolls;
 	$self-> {modified} = 0;
 
+	$self-> {hiliteBlok_modified} = 0;
+	$self-> area;
+
 	return %profile;
 }
 
 #-------------------------------------------------------------------------------
+
+sub area
+{
+	my ( $self, $it0, $rows ) = ( shift, shift, shift );
+
+	return unless @{$self->{hiliteBlok}};
+
+	$it0  ||= 0;
+	$rows ||= scalar @{$self-> {lines}};
+
+	$self->{hiliteBlok_modified} = 0 if $it0 == 0 && $rows == scalar @{$self-> {lines}};
+
+#print "area( $it0 , $rows )\n";
+
+	my $lev = 0;
+	$lev = $self->{hiliteBlok_value}->[$it0] if $it0 > 0;
+
+	splice(@{$self->{hiliteBlok_value}},$it0) if $self->{hiliteBlok_value} && @{$self->{hiliteBlok_value}} > $it0;
+    my $con = \$self->text;
+
+	my $blok_beg = $self->{hiliteBlok}->[0];
+	my $blok_end = $self->{hiliteBlok}->[1];
+
+	for (my $ite = $it0 ; $ite < $it0 + $rows + 2 ; $ite++ ) { #  $$con =~ m/^(.*)$/mg ) {
+		my $row = $self-> {lines}->[$ite] || '';
+		if ( $row =~ /($blok_beg|$blok_end)/ || $lev ) {
+			$lev = 1;
+			$self->{hiliteBlok_value}->[$ite] = 1;
+		}
+		$lev = 0 if $row =~ /$blok_end/;
+	}
+}
+
 #-------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------
@@ -336,6 +385,7 @@ sub reset
 		$self-> cursorSize( $xcw, $ycw);
 	}
 	$self-> {uChange} = 0;
+
 }
 
 #-------------------------------------------------------------------------------
@@ -404,6 +454,10 @@ sub VScroll_Change
 	$self-> {scrollTransaction} = 1;
 	$self-> topLine ( $scr-> value);
 	$self-> {scrollTransaction} = 0;
+
+#print "scroll\n" if $self-> {hiliteBlok_modified};
+	$self-> area if $self-> {hiliteBlok_modified};
+
 }
 
 #-------------------------------------------------------------------------------
@@ -448,23 +502,17 @@ sub reset_syntaxer
 {
 	my $self = $_[0];
 	unless ( $self-> {hiliteREs} ) {
-
 		$self-> {syntaxer} = sub {$_[2]=[];};
-
 	} else {
-
-		my $ic = $self->{hiliteCase}; $ic = 'i' if $ic; $ic='' unless $ic;
+		my $ic = $self->{hiliteCase} ? 'i' : '';
 		my @doers;
 		my $rest = 'push @a, $l, cl::Fore if $l; $l = 0;';
-
 		if ($self-> {hiliteREs}) {
-
 			my $i;
-			for ($i = 0; $i < scalar @{$self-> {hiliteREs}} - 1; $i+=2) {
 
+			for ($i = 0; $i < scalar @{$self-> {hiliteREs}} - 1; $i+=2) {
 				next unless ref $self-> {hiliteREs}-> [$i+1] eq 'HASH';
 				my $re = $self-> {hiliteREs}-> [$i];
-
 				push @doers, "/\\G$re/gc$ic && do { " .
 					$rest . 'push @a, length($1), ' .
 					$self-> {hiliteREs}-> [$i+1]-> {color} ."; redo; };\n";
@@ -528,107 +576,89 @@ sub wstaw_tab {
 my $_HTML_FILE = undef;
 my $_HTML_LAST_COLOR = 0;
 my %_HTML_COLOR;
+#-------------------------------------------------------------------------------
+
 
 sub draw_colorchunk
 {
 	my ( $self, $canvas, $chunk, $i, $x, $y, $clr, $which_color ) = @_;
+
+#print "draw_colorchunk=$self\n";
+
 	my $sd = $self-> {syntax}-> [$i];
 	unless ( defined $sd) {
 		$self-> notify(q(ParseSyntax), $chunk, $sd);
 		$self-> {syntax}-> [$i] = $sd;
 	}
-
-	my $blk_hlt = $self->{hiliteBlokColorIndex};
-
-	if ( scalar @{$self->{hiliteBlok}} ) {
-
-		for ( my $row = $self-> {topLine}; $row <= $i; $row++ ) {
-			my $tresc = @{$self-> {lines}}[$row];
-			if ( $blk_hlt >= 0 ) {
-				$blk_hlt = -1 if $tresc =~ /$self->{hiliteBlok}->[ 4 * $blk_hlt + 1]/;
-			} else {
-				my $nr = 0;
-				while ( $self->{hiliteBlok}->[ 4 * $nr ] ) {
-					$blk_hlt = $nr if $tresc =~ /$self->{hiliteBlok}->[ 4 * $nr ]/;
-					$nr++;
-				}
-			}
-		}
-	}
+#return;
 
 	my $backColor = 0;
+	my $fontColor = 0;
 	my $fontStyle = 0;
 	my $fontSize  = 0;
 
 	my $ofs = 0;
 	my $cc;
-	for ( my $j = 0; $j < scalar @{$sd} - 1; $j += 2 ) {
-		my $xd = $self-> get_chunk_width( $chunk, $ofs, $$sd[$j], \$cc);
-		( $cc, undef ) = wstaw_tab_15 ( $chunk, $ofs, $$sd[$j], $self->{tabs}, 1 );
 
+	for ( my $j = 0; $j < scalar @{$sd} - 1; $j += 2 ) {
+		my $xd = $self-> get_chunk_width ( $chunk, $ofs, $$sd[$j], \$cc);
+		( $cc, undef ) = wstaw_tab_15 ( $chunk, $ofs, $$sd[$j], $self->{tabs}, 1 );
 		for ( my $f = 0 ; $f < scalar @{$self-> {hiliteREs}}; $f += 2 ) {
 			next unless ref $self-> {hiliteREs}->[$f+1] eq 'HASH';
 			my $wzor = $self-> {hiliteREs}-> [$f];
 			if ( $cc =~ /$wzor/ ) {
-				if ( $self->{hiliteREs}->[$f+1]->{backColor} ) {
-					$canvas-> color ( $self->{hiliteREs}->[$f+1]->{backColor} );
+
+				if ( $self-> {hiliteREs}-> [$f+1]-> {backColor} ) {
+					$canvas-> color ( $self-> {hiliteREs}-> [$f+1]-> {backColor} );
 					$canvas-> bar (
-						$x,			$y                                            - int( 0.5 * $self->{lineSpace} ) ,
-						$x + $xd,	$y + $self->font->height + $self->{lineSpace} - int( 0.5 * $self->{lineSpace} )   );
+						$x,			$y												- int( 0.5 * $self->{lineSpace} ),
+						$x + $xd,	$y + $self-> font-> height + $self->{lineSpace} - int( 0.5 * $self->{lineSpace} )   );
 					$backColor = 1;
 				}
-				if ( $self->{hiliteREs}->[$f+1]->{style} ) {
-					$canvas -> set(font => {style => $self->{hiliteREs}->[$f+1]->{style}});
+
+				if ( $self->{hiliteREs}-> [$f+1]-> {style} ) {
+					$canvas-> set ( font => { style => $self-> {hiliteREs}-> [$f+1]-> {style} } );
 					$fontStyle = 1;
 				}
+
 				if ( $self->{hiliteREs}->[$f+1]->{size} ) {
-					$canvas -> set(font => {size  => $self->{hiliteREs}->[$f+1]->{size} });
+					$canvas-> set ( font => { size  => $self-> {hiliteREs}->[$f+1]->{size} });
 					$fontSize = 1;
 				}
 			}
+			last if $backColor && $self-> {hiliteREs}-> [$f+1]-> {last};
 		}
 
-my $tekscik = $cc;
-my $kolorek = $$sd[$j+1];
+		my $tekscik = $cc;
+		my $kolorek = $$sd[$j+1];
 
-		if ( $blk_hlt >= 0 ) {
-			if ( $self->{hiliteBgCo}-> [ 4 * $blk_hlt + 2] ) {
-				$canvas-> color(
-					( $$sd[$j+1] == cl::Fore) ? $self->{hiliteBlok}-> [ 4 * $blk_hlt + 3 ] : $$sd[$j+1]
+		if ( $self->{hiliteBlok_value}->[$i] ) {
+			if ( $self->{hiliteBlok}->[3] ) {
+				$canvas-> color ( $self->{hiliteBlok}->[3] );
+				$canvas-> bar (
+					$x,			$y												- int( 0.5 * $self->{lineSpace} ),
+					$x + $xd,	$y + $self-> font-> height + $self->{lineSpace} - int( 0.5 * $self->{lineSpace} ),
 				);
-
-$kolorek = $$sd[$j+1] == cl::Fore ? $self->{hiliteBlok}-> [ 4 * $blk_hlt + 3 ] : $$sd[$j+1];
-
-			} else {
-				$canvas-> color( $self->{hiliteBlok}-> [ 4 * $blk_hlt + 3] );
-$kolorek = $self->{hiliteBlok}-> [ 4 * $blk_hlt + 3];
+				$backColor = 1;
 			}
+			$canvas-> color ( $self->{hiliteBlok}->[2] );
+			$kolorek = $self->{hiliteBlok}->[2];
+
 		} else {
-#=cut
-			$canvas-> color(( $$sd[$j+1] == cl::Fore) ? $clr : $$sd[$j+1] );
-#=nic
-$kolorek = $$sd[$j+1] == cl::Fore ? $clr : $$sd[$j+1];
-
+			$canvas-> color (( $$sd[$j+1] == cl::Fore) ? $clr : $$sd[$j+1] );
+			$kolorek = $$sd[$j+1] == cl::Fore ? $clr : $$sd[$j+1];
 		}
-#print $_HTML_FILE,"\n";
-if ( $_HTML_FILE ) {
-	$tekscik =~ s/>/gt;/g;
-	$tekscik =~ s/</lt;/g;
-	my $html_kolor = substr('000000'.sprintf("%x",$kolorek),-6);
-	if ( $html_kolor eq '000000' ) {
-		print $_HTML_FILE $cc;
-	} else {
 
-#		unless ( $_HTML_COLOR{"kolor$html_kolor"} ) {
-#			$_HTML_LAST_COLOR++;
-#print $_HTML_FILE '.
-
-#		}
-
-		print $_HTML_FILE '<span style="color:#'.$html_kolor.'">'.$cc.'</span>';
-	}
-}
-
+		if ( $_HTML_FILE ) {
+			$tekscik =~ s/>/gt;/g;
+			$tekscik =~ s/</lt;/g;
+			my $html_kolor = substr('000000'.sprintf("%x",$kolorek),-6);
+			if ( $html_kolor eq '000000' ) {
+				print $_HTML_FILE $cc;
+			} else {
+				print $_HTML_FILE '<span style="color:#'.$html_kolor.'">'.$cc.'</span>';
+			}
+		}
 		$canvas-> text_out( $cc, $x, $y);
 		$canvas-> set( font => { style => fs::Normal }) if $fontStyle;
 		$canvas-> backColor( cl::Normal ) if $backColor;
@@ -636,6 +666,7 @@ if ( $_HTML_FILE ) {
 		$x += $xd;
 		$ofs += $$sd[$j];
 	}
+
 }
 
 #-------------------------------------------------------------------------------
@@ -646,6 +677,9 @@ sub on_paint
 {
 # local variables definition area
 	my ( $self, $canvas) = @_;
+
+#print "on_paint\n";
+
 	my @size   = $canvas-> size;
 	my @clr    = $self-> enabled ?
 	( $self-> color, $self-> backColor) :
@@ -660,13 +694,20 @@ sub on_paint
 	);
 	my @a = $self-> get_active_area( 0, @size);
 
-	my $numer = $Prima::CodeManager::developer{notes}->pageIndex;
+	my $numer = $Prima::CodeManager::developer{notes} ? $Prima::CodeManager::developer{notes}->pageIndex : 0;
 
 	if ( $Prima::CodeManager::developer{notes} && $Prima::CodeManager::developer{"notes_$numer"} && $self eq $Prima::CodeManager::developer{"notes_$numer"} ) {
 		if ( $Prima::CodeManager::developer{ "numer_$numer" } ) {
 			my $numbers = '';
 			for ( $self->{topLine} + 1 .. $self->{topLine} + $self->{rows} + 2 ) {
-				$numbers .= "$_\n"
+				$numbers .= "$_\n";
+=pod
+				if ( $self->{hiliteBlok_value}->[$_-1] ) {
+					$numbers .= $_.':'.$self->{hiliteBlok_value}->[$_-1]."\n";
+				} else {
+					$numbers .= "$_  \n";
+				}
+=cut
 			}
 			$Prima::CodeManager::developer{ "numer_$numer"}->set( text => $numbers );
 		}
@@ -675,21 +716,18 @@ sub on_paint
 	if ( $self->{exportHTML} > 0 ) {
 		open ( $_HTML_FILE, ">CodeManager.html" );
 
-		print $_HTML_FILE '<pre style="font-family:Courier New;">'."\n";
+		print $_HTML_FILE '<pre style="font-family:Courier New;font-size:9pt;">'."\n";
 		print $_HTML_FILE '<a href="http://sao.pl" style="color:#cccccc;" target="NewWindow">Coloured by CodeManager</a>'."\n\n";
 	}
 
-	$self->{hiliteBlokColorIndex} = -1;
-
+#	$self->{hiliteBlokColorIndex} = -1;
+=pod
 	if ( scalar @{$self->{hiliteBlok}} ) {
-
 		my $tresc = '';
 		my $row   = $self-> {topLine} - 1;
-
 		while ( $row >= 0 ) {
 			$tresc = @{$self-> {lines}}[$row];
 			my $nr = 0;
-
 #			while ( $self->{hiliteBgCo}->[ 4 * $nr ] ) {
 				if ( $tresc =~ /$self->{hiliteBlok}->[4*$nr]/ ) {
 					$self->{hiliteBlokColorIndex} = $nr;
@@ -704,6 +742,7 @@ sub on_paint
 			$row--;
 		}
 	}
+=cut
 
 # drawing sheet
 	my @clipRect = $self-> clipRect;
@@ -813,9 +852,10 @@ sub on_paint
 	}
 	my $cSet = 0;
 
-my $which_color = 0;
+	my $which_color = 0;
 
 # painting lines
+
 	my $l_beg = $tl;
 	my $l_end = $lim;
 	if ( $self->{exportHTML} > 0 ) {
@@ -840,7 +880,6 @@ my $which_color = 0;
 
 						$self-> draw_colorchunk(
 							$canvas, $c, $i,
-
 							$x, $y, $clr[0],
 							$which_color
 						);
@@ -873,9 +912,7 @@ my $which_color = 0;
 
 						$self-> draw_colorchunk(
 							$canvas, $c, $i,
-
 							$x, $y, $clr[0],
-
 							$which_color
 						);
 					} else {
@@ -899,7 +936,6 @@ my $which_color = 0;
 
 						$self-> draw_colorchunk(
 							$canvas, $c, $i,
-
 							$x, $y, $clr[0],
 							$which_color
 						);
@@ -941,7 +977,6 @@ my $which_color = 0;
 
 					$self-> draw_colorchunk(
 						$canvas, $c, $i,
-
 						$x, $y, $clr[0],
 						$which_color
 					);
@@ -1177,37 +1212,72 @@ sub on_mouseclick
 	$self-> {doubleclickTimer}-> start;
 }
 
+##########################################################################
+
 sub on_keydown
 {
 	my ( $self, $code, $key, $mod, $repeat) = @_;
+
+#	$self->{hiliteBlok_modified} = 1;
+
+=pod
+	my @cs = $self-> cursor;
+	my $curr_row  = $self->{topLine} + $cs[1];
+	my $blok_beg  = $self->{hiliteBlok}->[0];
+	my $blok_end  = $self->{hiliteBlok}->[1];
+
+	my ( $prev_type, $next_type ) = ( 0, 0 );
+	$prev_type =  1 if $self-> get_line( $cs[1] ) =~  /($blok_beg|blok_end)/;
+
+	my $modify = 0;
+	for (my $i = $cs[1] ; $i < $cs[1] + $self->{rows} ; $i++ ) {
+		$modify = 1 if $self-> get_line( $i ) && (
+			$self-> get_line( $i ) =~  /($blok_beg|blok_end)/ || $self->{hiliteBlok_value}->[ $i ]
+		);
+		last if $modify
+	}
+
+=cut
+	if ($key == kb::Enter	|| $key == kb::Backspace	|| $key == kb::Return ||
+		$key == kb::Tab		|| $key == kb::Delete
+	) {
+		$self-> area( $self->{topLine}, $self->{rows} ) ;
+#		if ( $modify ) {
+#			$self->{hiliteBlok_modified} = 1;
+#		}
+	}
+
 	return if $self-> {readOnly};
 	return if $mod & km::DeadKey;
+
 	$mod &= ( km::Shift|km::Ctrl|km::Alt);
 	$self-> notify(q(MouseUp),0,0,0) if $self-> {mouseTransaction};
 	if ( $key == kb::Tab && !$self-> {wantTabs}) {
 		return unless $mod & km::Ctrl;
 		$mod &= ~km::Ctrl;
 	}
+
+
 	if  (
 		( $code >= ord(' ') || ( $code == ord("\t"))) &&
 		(( $mod  & (km::Alt | km::Ctrl)) == 0) &&
 		(( $key == kb::NoKey) || ( $key == kb::Space) || ( $key == kb::Tab))
 	) {
 
-{	#wb:
-		$self-> delete_block if $self-> has_selection;
-}
+		{	#wb:
+			$self-> delete_block if $self-> has_selection;
+		}
+
 		my @cs = $self-> cursor;
 		my $c  = $self-> get_line( $cs[1] );
 		my $l = 0;
 
 		$self-> begin_undo_group;
 		if ( $self-> insertMode) {
-			$l = $cs[0] - length( $c), $c .= ' ' x $l
-
-				if length( $c) < $cs[ 0];
+			$l = $cs[0] - length( $c), $c .= ' ' x $l if length( $c) < $cs[ 0];
 			substr( $c, $cs[0], 0) = chr($code) x $repeat;
 			$self-> set_line( $cs[1], $c, q(add), $cs[0], $l + $repeat);
+
 		} else {
 			$l = $cs[0] - length( $c) + $repeat, $c .= ' ' x $l
 				if length( $c) < $cs[ 0] + $repeat;
@@ -1215,6 +1285,10 @@ sub on_keydown
 			substr( $c, $cs[0], $repeat) = chr($code) x $repeat;
 			$self-> set_line( $cs[1], $c, q(overtype));
 		}
+
+#		$next_type =  1 if $self-> get_line( $cs[1] ) =~  /($blok_beg|blok_end)/;
+#		$self-> area;
+
 		$self-> cursor( $cs[0] + $repeat, $cs[1]);
 		$self-> end_undo_group;
 		$self-> clear_event;
@@ -1251,18 +1325,37 @@ sub on_change
 	my ( $self ) = @_;
 
 	$self-> {modified} = 1;
+	$self-> {hiliteBlok_modified} = 1;
 
-	my $nr = $Prima::CodeManager::developer{notes}->pageIndex;
+	if ( $Prima::CodeManager::developer{notes} ) {
+		my $nr = $Prima::CodeManager::developer{notes}->pageIndex;
 
-	$Prima::CodeManager::list_of_files[ $nr ] = '*'.$Prima::CodeManager::list_of_files[ $nr ] if $Prima::CodeManager::list_of_files[ $nr ] !~ /^\*/;
-	$Prima::CodeManager::developer{notes}->set_tabs( @Prima::CodeManager::list_of_files );
+		$Prima::CodeManager::list_of_files[ $nr ] = '*'.$Prima::CodeManager::list_of_files[ $nr ] if $Prima::CodeManager::list_of_files[ $nr ] !~ /^\*/;
+		$Prima::CodeManager::developer{notes}->set_tabs( @Prima::CodeManager::list_of_files );
+	}
 
-	on_paint ( $self, $self ) if scalar @{$self->{hiliteBlok}};
+#print "on_change\n";
+
+#	if ( $self->{hiliteBlok_modified} ) {
+#		$self-> area;
+#		on_paint ( $self, $self );
+#	}
+#	$self->{hiliteBlok_modified} = 0;
+
+	if ( $self-> {hiliteBlok_modified} && @{$self->{hiliteBlok}} ) {
+		$self-> area( $self->{topLine}, $self->{rows} ) ;
+#		on_paint ( $self, $self );
+	}
+
+#	on_paint ( $self, $self ) if scalar @{$self->{hiliteBlok}};
 }
 
 #----------------------------------------------------------------------------------------
 
-sub on_parsesyntax { $_[0]-> {syntaxer}-> (@_); }
+sub on_parsesyntax {
+	$_[2] = [] unless $_[2];
+	$_[0]-> {syntaxer}-> (@_);
+}
 
 sub set_block_type
 {
@@ -1807,6 +1900,8 @@ sub cut
 	$self-> copy;
 	$self-> delete_block;
 	$self-> end_undo_group;
+
+	$self-> area( $self->{topLine}, $self->{rows} ) if @{$self->{hiliteBlok}};
 }
 
 #-------------------------------------------------------------------------------
@@ -1936,6 +2031,8 @@ sub insert_text
 	$self-> lock_change(0);
 	$self-> end_undo_group;
 
+	$self-> area( $self->{topLine}, $self->{rows} ) if @{$self->{hiliteBlok}};
+
 	$self-> cursor( @xy );
 }
 
@@ -1984,6 +2081,9 @@ sub paste
 	}
 
 	$self-> insert_text( $::application-> Clipboard-> text, 1);
+
+	$self-> area( $self->{topLine}, $self->{rows} ) if @{$self->{hiliteBlok}};
+
 }
 
 sub make_logical
@@ -2022,7 +2122,7 @@ sub make_logical
 		}
 	}
 	$y = $i;
-	$i *= 3;
+	$i*= 3;
 	$i-= 3, $y-- while $$cm[ $i] != 0;
 	$i+= 3, $y++ while $x > $$cm[ $i] + $$cm[ $i + 1];
 	$x -= $$cm[ $i];
@@ -2083,7 +2183,7 @@ sub set_marking
 	$mark ? $self-> start_block( $blockType || $self-> {blockType}) : $self-> end_block;
 }
 
-#	#wb
+#wb
 sub kursor_w_dol {
 	my ( $line, $vis_len_prev ) = @_;
 
@@ -2109,17 +2209,20 @@ sub kursor_w_dol {
 sub cursor_down
 {
 	my $d = $_[1] || 1;
-
+#print "cursor_down\n";
 	my $l1 = $_[0]->get_line( $_[0]-> {cursorYl} );
 	my $l2 = $_[0]->get_line( $_[0]-> {cursorYl} + $d );
 
 	($l1,undef) = wstaw_tab_15( $l1, 0, $_[0]-> {cursorX}, '', 0 );
 	my $len2 = kursor_w_dol( $l2,length($l1));
 	$_[0]-> cursorLog( $len2, $_[0]-> {cursorYl} + $d);
+
+	$_[0]-> area( $_[0]->{topLine}, $_[0]->{rows} ) if $_[0]-> {hiliteBlok_modified} && @{$_[0]->{hiliteBlok}};
 }
 
 sub cursor_up
 {
+#print "cursor_up\n";
 	return if $_[0]-> {cursorYl} == 0;
 
 	my $d = $_[1] || 1;
@@ -2133,6 +2236,8 @@ sub cursor_up
 #	my ( $x, $y) = $_[0]-> make_physical( $_[0]-> {cursorXl}, $_[0]-> {cursorYl} - $d);
 	$y = 0 if $y < 0;
 	$_[0]-> cursor( $x, $y);
+
+	$_[0]-> area( $_[0]->{topLine}, $_[0]->{rows} ) if $_[0]-> {hiliteBlok_modified} && @{$_[0]->{hiliteBlok}};
 }
 
 sub cursor_left
@@ -2189,61 +2294,84 @@ sub cursor_end
 
 }
 
-sub cursor_cend  { $_[0]-> cursor( 0, -1 ); $_[0]-> cursor_end; }
-sub cursor_chome { $_[0]-> cursor( 0,  0 ); }
+sub cursor_cend  {
+	$_[0]-> cursor( 0, -1 );
+	$_[0]-> cursor_end;
+#print "cursor_cend\n";
 
+	$_[0]-> area if $_[0]-> {hiliteBlok_modified} && @{$_[0]->{hiliteBlok}};
+}
+
+sub cursor_chome {
+	$_[0]-> cursor( 0,  0 );
+#print "cursor_chome\n";
+
+	$_[0]-> area if $_[0]-> {hiliteBlok_modified} && @{$_[0]->{hiliteBlok}};
+}
+#----------------------------------------------
 sub cursor_cpgup
 {
 	my @xy = (0,0);
+#print "cursor_cpgup\n";
 	if ( $_[0]->{cursorYl} > $_[0]->topLine ) {
 		@xy = ( $_[0]-> {cursorXl}, $_[0]->topLine );
 	}
 	$_[0]-> cursorLog( @xy );
-}
 
+	$_[0]-> area if $_[0]-> {hiliteBlok_modified} && @{$_[0]->{hiliteBlok}};
+}
+#----------------------------------------------
 sub cursor_cpgdn
 {
 	my @xy = ( 0, -1 );
+#print "cursor_cpgdn\n";
 	if ( $_[0]->{cursorYl} < $_[0]->topLine + $_[0]->{rows} - 1 ) {
 		@xy = ( $_[0]-> {cursorXl}, $_[0]->topLine + $_[0]->{rows} - 1 );
 	}
 	$_[0]-> cursorLog( @xy );
 
+	$_[0]-> area if $_[0]-> {hiliteBlok_modified} && @{$_[0]->{hiliteBlok}};
+
 #	my $cy = $_[0]->{cursorYl} == $_[0]->topLine + $_[0]->{rows} - 1 ? 0 : $_[0]->topLine + $_[0]->{rows};
 #	$_[0]-> cursorLog( $_[0]-> {cursorXl}, $cy - 1 );
 }
-
+#----------------------------------------------
 sub cursor_pgup
 {
 	my $d = $_[1] || 1;
 	my $i;
 	my @xy = $_[0]->cursor;
 	for ( $i = 0; $i < $d; $i++) {
-		my ( $tl, $r) = ($_[0]-> topLine , $_[0]-> {rows});
+		my ( $tl, $r) = ($_[0]-> topLine , $_[0]-> {rows} );
 
-#		my $cy = $_[0]->topLine - ( $_[0]->{cursorYl} > $_[0]->topLine ? 0 : $_[0]->{rows} );
-#		my $cy = $_[0]->topLine - $_[0]->{rows};
 		my $cy = $tl - $r;
 
 		$_[0]-> cursorLog( $_[0]-> {cursorXl}, $cy < 0 ? 0 : $cy);
-		$_[0]-> cursorLog( $_[0]-> {cursorXl}, $xy[1] < $r ? 0 : $xy[1]-$r  );
+		$_[0]-> cursorLog( $_[0]-> {cursorXl}, $xy[1] < $r ? 0 : $xy[1] - $r  );
+
+		$_[0]-> area( $_[0]->{topLine}, $_[0]->{rows} ) if $_[0]-> {hiliteBlok_modified} && @{$_[0]->{hiliteBlok}};
 	}
 }
+#----------------------------------------------
+
 sub cursor_pgdn  {
 	my $d = $_[1] || 1;
 	my $i;
 	my @xy = $_[0]->cursor;
 	for ( $i = 0; $i < $d; $i++) {
-		my ( $tl, $r) = ($_[0]-> topLine , $_[0]-> {rows});
+		my ( $tl, $r) = ($_[0]-> topLine , $_[0]-> {rows} - 1);
 
-#		my $cy = $tl + $r - 1 + (( $_[0]-> {cursorYl} < $tl+$r-1) ? 0 : $r);
-#		my $cy = $tl + 2*$r - 1;
-		my $cy = $tl + 2*$r;
+		my $cy = $tl + 2*$r + 1;
 
 		$_[0]-> cursorLog( $_[0]-> {cursorXl}, $cy);
-		$_[0]-> cursorLog( $_[0]-> {cursorXl}, $xy[1]+$r+1 );
+		$_[0]-> cursorLog( $_[0]-> {cursorXl}, $xy[1] + $r + 1 );
+
+		$_[0]-> area( $_[0]->{topLine}, $_[0]->{rows} ) if $_[0]-> {hiliteBlok_modified} && @{$_[0]->{hiliteBlok}};
 	}
 }
+
+##############################################
+##############################################
 
 sub word_right
 {

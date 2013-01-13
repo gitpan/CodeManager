@@ -1,3 +1,15 @@
+################################################################################
+# This is CodeManager
+# Copyright 2009-2013 by Waldemar Biernacki
+# http://codemanager.sao.pl\n" .
+#
+# License statement:
+#
+# This program/library is free software; you can redistribute it
+# and/or modify it under the same terms as Perl itself.
+#
+# Last modified (DMYhms): 13-01-2013 13:17:48.
+################################################################################
 
 package Prima::CodeManager::Misc;
 
@@ -12,7 +24,6 @@ sub read_file_at_once {
     my( $self, $file ) = @_ ;
 
 	return unless -f $file;
-
     my $content;
 
     local *FH;
@@ -193,9 +204,42 @@ sub licz_kolor
 
 ################################################################################
 
+sub angle_color
+{
+	my ( $self, $phi, $white, $black ) = @_;
+
+	$phi   %= 360;
+
+	$white  = 255 unless defined $white;
+	$white %= 256;
+
+	$black  =   0 unless defined $black;
+	$black %= 256;
+
+	if ( $black > $white ) {
+		my $tmp = $white;
+		$white = $black;
+		$black = $tmp;
+	}
+
+	my $gamma = int ( ( $white - $black ) * ( $phi % 60 ) / 60 );
+	my ( $red, $gre, $blu ) = (0,0,0);
+
+	if    ( $phi <  60 ) { ( $red, $gre, $blu ) = ( $black+$gamma,        $white,        $black ) }
+	elsif ( $phi < 120 ) { ( $red, $gre, $blu ) = (        $white, $white-$gamma,        $black ) }
+	elsif ( $phi < 160 ) { ( $red, $gre, $blu ) = (        $white,        $black, $black+$gamma ) }
+	elsif ( $phi < 240 ) { ( $red, $gre, $blu ) = ( $white-$gamma,        $black,        $white ) }
+	elsif ( $phi < 300 ) { ( $red, $gre, $blu ) = (        $black, $black+$gamma,        $white ) }
+	elsif ( $phi < 360 ) { ( $red, $gre, $blu ) = (        $black,        $white, $white-$gamma ) }
+
+	return int( 1.0 * ( $red + 256 * $gre + 256 * 256 * $blu ));
+}
+
+########################################################################################
+
 sub create_user_home_directory
 {
-	my ( $self, $home_directory, $CodeManager_directory ) = @_;
+	my ( $self, $home_directory ) = @_;
 
 	return if -e $home_directory;
 
@@ -204,7 +248,7 @@ sub create_user_home_directory
 
 my $CodeManager_CodeManager =<< "_CODE_MANAGER_";
 [GLOBAL]
-#group of projects (future)
+#group of projects
 group = System
 
 #name of project
@@ -227,7 +271,7 @@ tree_fontName		= DejaVu Sans Mono
 #only one is taken; height - if > 0 - has higher rank than size
 #if none then tree_fontSize = 0.625 * tree_itemHeight
 tree_fontSize		= 10
-#tree_fontHeight	= 30
+tree_fontHeight		= 14
 
 ############## EDITOR PANEL #############
 #additional space between lines. Can be negative!
@@ -237,7 +281,7 @@ editor_lineSpace	=  2
 #editor font size or height (similar rules to the tree configuration ones)
 #It is possible to dynamically change by pressing CtrlDown/CtrlUp keys
 editor_fontSize		= 11
-#editor_fontHeight	= 12
+editor_fontHeight	= 14
 
 #Font family should be chosen the mono type, but whatever!
 editor_fontName		= DejaVu Sans Mono
@@ -245,6 +289,7 @@ editor_fontName		= DejaVu Sans Mono
 ############## NOTEBOOK CONFIGURATION #############
 
 notebook_fontSize	=  9
+notebook_fontHeight	= 12
 notebook_fontName	= Arial
 
 [EXTERNAL_EDITORS]
@@ -272,9 +317,9 @@ image		= cm.png
 linux		= %CodeManager%
 windows		= %CodeManager%
 extensions	= all
-ext_exclude	= \\.exists\$
+ext_exclude	= \.exists
 directories	= all
-dir_exclude	= \\.svn\$
+dir_exclude	= \.svn
 
 _CODE_MANAGER_
 

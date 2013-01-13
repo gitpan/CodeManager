@@ -5,5 +5,5 @@ $main::hilite{rexp_tex} = [
 	'(\\\\def\\\\\\w+[^{]*)',	{ color => 0xdd0000,},
 	'(\\\\[a-zA-Z]+)',			{ color => 0x0066ff,},
 	'(\{|\})',					{ color => 0xdd00dd, style => fs::Bold,},
-	'(\#\d+)',					{ color => 0x00cc66,},
+	'(\#\d+)',					{ color => 0x00cc66, style => fs::Bold,},
 ];

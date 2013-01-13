@@ -1,7 +1,19 @@
+################################################################################
+# This is CodeManager
+# Copyright 2009-2013 by Waldemar Biernacki
+# http://codemanager.sao.pl\n" .
+#
+# License statement:
+#
+# This program/library is free software; you can redistribute it
+# and/or modify it under the same terms as Perl itself.
+#
+# Last modified (DMYhms): 13-01-2013 17:45:10.
+################################################################################
 
 package Prima::CodeManager::CodeManager;
 
-our $VERSION  = '0.03';
+our $VERSION  = '0.04';
 
 1;
 
@@ -15,25 +27,31 @@ use warnings;
 use Cwd;
 
 use Prima qw(Application);
+use Prima::Buttons;
 use Prima::FileDialog;
 use Prima::FrameSet;
-use Prima::ScrollWidget;
 use Prima::ExtLists;
+use Prima::ImageViewer;
+use Prima::MsgBox;
+use Prima::ScrollWidget;
 use Prima::StdDlg;
+
 
 use Prima::CodeManager::Outlines;
 use Prima::CodeManager::Notebooks;
 use Prima::CodeManager::Label;
+use Prima::CodeManager::Image;
 
 use base "Prima::CodeManager::Misc";
 use base "Prima::CodeManager::File";
+#use base "Prima::CodeManager::Remote";
 
 use File::Copy;
 use File::Path qw(make_path remove_tree);
 use File::Copy::Recursive qw(fcopy rcopy dircopy fmove rmove dirmove);
 use File::HomeDir;
 
-our $VERSION  = '0.02';
+our $VERSION  = '0.04';
 
 ########################################################################################
 
@@ -54,16 +72,27 @@ our $CodeManager_encoding  = '';
 #-------------------------------------------------------
 
 #setting CodeManager.pm directory
-our $CodeManager_directory = '.';
-	my $module = 'Prima::CodeManager::CodeManager';
-	s/::/\//g, s/$/.pm/ for $module;
-	$CodeManager_directory = $INC{$module}; $CodeManager_directory =~ s/\/CodeManager\.pm$//;
-	$CodeManager_directory ||= '.';
+our $CodeManager_directory = '';
+
+if ( $PerlApp::BUILD ) {
+
+#	$CodeManager_directory  = PerlApp::exe();
+#	$CodeManager_directory  =~ s/(\\|\/)[^\\\/]*\.exe$//;
+#	$CodeManager_directory .= '/Prima/CodeManager';
+	$CodeManager_directory  = 'Prima/CodeManager';
+
+} else {
+
+	$CodeManager_directory =  $INC{'Prima/CodeManager/CodeManager.pm'};
+	$CodeManager_directory =~ s/\/CodeManager\.pm$//;
+}
+
+#print "CodeManager_directory=$CodeManager_directory\n";
 
 #-------------------------------------------------------
 
 #setting user home directory
-our $home_directory = File::HomeDir->my_home.'/.CodeManager';
+our $home_directory = File::HomeDir-> my_home.'/.CodeManager';
 
 #-------------------------------------------------------
 
@@ -74,17 +103,15 @@ our %file_encodings; #this is a hash of the files encodings
 our %all_extensions;
 our $file_number = 0;
 
-#-------------------------------------------------------
-
-our @warpColors = ( 0xffaa00, 0x50d8f8, 0x80d8a8, 0x8090f8, 0xd0b4a8, 0xf8fca8, 0xa890a8, 0xf89050, 0xf8d850, 0xf8b4a8, 0xf8d8a8, );
-my $random_kolor = int(rand( @warpColors - 1 ));
-#my $project_color = 0x330077;
-my $project_color = $warpColors[$random_kolor] ;
-$project_color = Prima::CodeManager::Misc::licz_kolor( 0, 0x000000, $project_color, 0.3 );
-
 my $popup;
 
-########################################################################################
+#-------------------------------------------------------
+my $int_color = int(rand(360));
+my $int_white = 170;
+my $int_black =  40;
+my $project_color = Prima::CodeManager::Misc::angle_color( undef, $int_color, $int_white, $int_black );
+
+#-------------------------------------------------------
 
 sub new
 {
@@ -107,17 +134,21 @@ sub new
 		},
 	);
 #-------------------------------------------------------
-	$this->create_user_home_directory ( $home_directory, $CodeManager_directory ) unless -e "$home_directory/.exists";
-	Prima::message ( "I can't create your CodeManager home directory:\n$home_directory" ) unless -e "$home_directory/.exists";
+	$this-> create_user_home_directory ( $home_directory ) unless -d "$home_directory";
+	Prima::message ( "I can't create your CodeManager home directory:\n$home_directory" ) unless -d $home_directory;
 #-------------------------------------------------------
 	my $DIR;
 	#reading names of the hiliting files in "Prima/CodeManager/hilite" subdirectory:
 	my @hilite_files = [];
-	my @hilite_files_ext; # = <$CodeManager_directory/hilite/hilite_*.pl>;
+	my @hilite_files_ext; # = <$CodeManager_directory/hilite/hilite_*.pl>; (doesn't work on Windows)
 	if ( opendir $DIR, "$CodeManager_directory/hilite" ) {
+
 		@hilite_files_ext = sort grep { $_ =~ /hilite_\w+\.pl/ } readdir $DIR;
 		closedir $DIR;
 	}
+
+##################################################
+
 	for ( my $i = 0; $i < @hilite_files_ext; $i++ ) {
 		if ( $hilite_files_ext[$i] =~ /hilite_(\w+)\.pl/ ) {
 			my $ext = $1;
@@ -128,6 +159,7 @@ sub new
 		}
 	}
 #-------------------------------------------------------
+
 	#reading images:
 	my @images_files_ext; # = <$CodeManager_directory/img/*.png>;
 	if ( opendir $DIR, "$CodeManager_directory/img" ) {
@@ -142,25 +174,61 @@ sub new
 	}
 #-------------------------------------------------------
 	#reading names of the projects file names in the user CodeManager home "~/.CodeManager/projects" subdirectory:
-	my @projects_files_edit = [];
-	my @projects_files_open = [];
+	my @projects_files_open;
+	my @projects_files_edit;
 	my @projects_files_name;
 	if ( opendir $DIR, "$home_directory/projects" ) {
 		@projects_files_name = sort grep { $_ =~ /\.cm/ } readdir $DIR;
 		closedir $DIR;
 	}
+	my $_group = '`';
+	my @files_open;
+	my @files_edit;
+	foreach ( sort map {
+		if ( $_ =~ /([^\/]+)\.cm/ ) {
+			my $content = $this-> read_file( "$home_directory/projects/$1.cm" );
+			my ( $group, $name, $file ) = ( '', $_, $1 );
+			$group = $1 if $content =~ /\n\s*group\s*=\s*\b(.*)\b\s*\n/;
+			$name  = $1 if $content =~ /\n\s*name\s*=\s*\b(.*)\b\s*\n/;
+			$_ = "$group`$name`$file";
+		}
+	} @projects_files_name ) {
+		if ( $_ =~ /(.*)`(.*)`(.*)/ ) {
+			my ( $group, $name, $file ) = ( $1, $2, $3 );
+			if ( $_group && $_group ne $group && $_group ne '`' ) {
+				push @projects_files_open, [ $_group => [ @files_open ]];
+				push @projects_files_edit, [ $_group => [ @files_edit ]];
+				undef @files_open;
+				undef @files_edit;
+			}
+			$_group = $group;
+			push @files_open, [ $name => sub { $this-> open      ( "$home_directory/projects/$file.cm" )}];
+			push @files_edit, [ $name => sub { $this-> file_edit ( "$home_directory/projects/$file.cm" )}];
+		}
+	}
+	push @projects_files_open, [ $_group => [ @files_open ]];
+	push @projects_files_edit, [ $_group => [ @files_edit ]];
+
+#print Dumper(@projects_files_edit);
+=pod
 	for ( my $i = 0; $i < @projects_files_name; $i++ ) {
 		if ( $projects_files_name[$i] =~ /([^\/]+)\.cm/ ) {
 			my $name = $1;
 			if ( -f "$home_directory/projects/$name.cm" ) {
-				$projects_files_edit[$i] = [ $name => sub { $this-> file_edit ( "$home_directory/projects/$name.cm" )}];
+
+				my $content = $this-> read_file( "$home_directory/projects/$name.cm" );
+				$name = $1 if $content =~ /\n\s*name\s*=\s*\b(.*)\b\s*\n/;
 				$projects_files_open[$i] = [ $name => sub { $this-> open ( "$home_directory/projects/$name.cm" )}];
+				$projects_files_edit[$i] = [ $name => sub { $this-> file_edit ( "$home_directory/projects/$name.cm" )}];
+
 			}
 		}
 	}
+=cut
+
 #-------------------------------------------------------
 	$this->{mw} = Prima::MainWindow-> create(
-		icon => $this-> load_icon( "$CodeManager_directory/img/cm512.png" ),
+		icon => $this-> load_icon( "$CodeManager_directory/img/cm32.png" ),
 		name		=>	'CodeManager',
 		text		=>	'CodeManager',
 		title		=>	'CodeManager',
@@ -175,51 +243,52 @@ sub new
 		menuBackColor => $this->licz_kolor( 0xffffff, $project_color, 0.3 ),
 		menuItems => [
 			[ '~System' => [
-				[ '~Hiliting Files'	=> [ @hilite_files ]],
-				[ '~Meld'			=> 'AltM'			=> '@M'		=> sub { system('meld Prima/CodeManager/CodeManager.pm CPAN/Prima-CodeManager-001/lib/Prima/CodeManager/CodeManager.pm') }],
-#				[ '~Hiliting Files'	=> 'CtrlH'			=> '^H'		=> sub { &hilite_open }]
+				[ '~Hiliting Files'		=> [ @hilite_files ]],
+				[ '~Meld'				=> 'AltM'			=> '@M'		=> sub { $this-> meld }],
+#				[ '~Hiliting Files'		=> 'CtrlH'			=> '^H'		=> sub { &hilite_open }]
 #				],
 				[],
-				[ 'E~xit'			=> 'AltX'			=> '@X'		=> sub { $::application-> close}],
+				[ 'E~xit'				=> 'AltX'			=> '@X'		=> sub { $::application-> close}],
 			]],
 			[ '~Project' => [
-				[ '~Open project'	=> [ @projects_files_open ]],
+				[ '~Open project'		=> [ @projects_files_open ]],
 				[],
-				[ '~Open from disk'	=> 'F4'				=> 'F4'		=> sub { $this-> open }],
-				[ '~Refresh'		=> 'F5'				=> 'F5'		=> sub { $this-> make_tree }],
-				[ '~Save'			=> 'F2'				=> 'F2'		=> sub { $this-> save }],
+				[ '~Open from disk'		=> 'F4'				=> 'F4'		=> sub { $this-> open }],
+				[ '~Refresh'			=> 'F5'				=> 'F5'		=> sub { $this-> make_tree }],
+				[ '~Save'				=> 'F2'				=> 'F2'		=> sub { $this-> save }],
 				[],
 				[ '~Edit projects files'=> [ @projects_files_edit ]],
 			]],
 			[ '~Edit' => [
-				[ 'Undo'			=> 'CtrlZ'			=> '^Z',					q(undo)],
-				[ 'Undo'			=> 'AltBackspace'	=>	km::Alt|kb::Backspace,	q(undo)],
-				[ 'Redo'			=> 'CtrlD'			=> '^D',					q(redo)],
+				[ 'Undo'				=> 'CtrlZ'			=> '^Z',					q(undo)],
+				[ 'Undo'				=> 'AltBackspace'	=>	km::Alt|kb::Backspace,	q(undo)],
+				[ 'Redo'				=> 'CtrlD'			=> '^D',					q(redo)],
 			]],
 			[ '~File' => [
-#				[ '~New'			=> 'CtrlN'			=> '^N'		=> sub { $this-> file_new($this) } ],
-				[ '~Open...'		=> 'CtrlO'			=> '^O'		=> sub { $this-> file_open } ],
-				[ '~Save'			=> 'CtrlS'			=> '^S'		=> sub { $this-> file_save } ],
-#				[ 'Save ~as...'		=> 'CtrlA'			=> '^A'		=> sub { $this-> file_save_as($this) } ],
-				[ '~Find...'		=> 'CtrlF'			=> '^F'		=> sub { $this-> find } ],
-				['~Replace...'		=> 'CtrlR'			=> '^R'		=> sub { $this-> replace } ],
-				['Find n~ext'		=> 'F3'				=> 'F3'		=> sub { $this-> find_next } ],
+				[ '~New'				=> 'CtrlN'			=> '^N'		=> sub { $this-> file_new($this) } ],
+				[ '~Open...'			=> 'CtrlO'			=> '^O'		=> sub { $this-> file_open } ],
+				[ '~Save'				=> 'CtrlS'			=> '^S'		=> sub { $this-> file_save } ],
+				[ 'Save ~as...'			=> 'CtrlA'			=> '^A'		=> sub { $this-> file_save_as($this) } ],
+				[ '~Find...'			=> 'CtrlF'			=> '^F'		=> sub { $this-> find } ],
+				[ '~Jump the line...'	=> 'CtrlJ'			=> '^J'		=> sub { $this-> jump } ],
+				['~Replace...'			=> 'CtrlR'			=> '^R'		=> sub { $this-> replace } ],
+				['Find n~ext'			=> 'F3'				=> 'F3'		=> sub { $this-> find_next } ],
 				[],
-				['Show next'		=> 'AltRight'		=>	km::Alt|kb::Right			=>	sub { $this->show_tab( 1) } ],
-				['Show next'		=> 'CtrlTab'		=>	km::Ctrl|kb::Tab			=>	sub { $this->show_tab( 1) } ],
-				['Show prev'		=> 'AltLeft'		=>	km::Alt|kb::Left			=>	sub { $this->show_tab(-1) } ],
-				['Show prev'		=> 'CtrlShiftTab'	=>	km::Ctrl|kb::Tab|km::Shift	=>	sub { $this->show_tab(-1) } ],
+				['Show next'			=> 'AltRight'		=>	km::Alt|kb::Right			=>	sub { $this->show_tab( 1) } ],
+				['Show next'			=> 'CtrlTab'		=>	km::Ctrl|kb::Tab			=>	sub { $this->show_tab( 1) } ],
+				['Show prev'			=> 'AltLeft'		=>	km::Alt|kb::Left			=>	sub { $this->show_tab(-1) } ],
+				['Show prev'			=> 'CtrlShiftTab'	=>	km::Ctrl|kb::Tab|km::Shift	=>	sub { $this->show_tab(-1) } ],
 				[],
-				['Font size -'		=> 'CtrlUp'			=>	km::Ctrl|kb::Up				=>	sub { $this->show_size(-1, 0) } ],
-				['Font size +'		=> 'CtrlDown'		=>	km::Ctrl|kb::Down			=>	sub { $this->show_size( 1, 0) } ],
-				['Line spacing -'	=> 'AltUp'			=>	km::Alt|kb::Up				=>	sub { $this->show_size( 0,-1) } ],
-				['Line spacing +'	=> 'AltDown'		=>	km::Alt|kb::Down			=>	sub { $this->show_size( 0, 1) } ],
+				['Font size -'			=> 'CtrlUp'			=>	km::Ctrl|kb::Up				=>	sub { $this->show_size(-1, 0) } ],
+				['Font size +'			=> 'CtrlDown'		=>	km::Ctrl|kb::Down			=>	sub { $this->show_size( 1, 0) } ],
+				['Line spacing -'		=> 'AltUp'			=>	km::Alt|kb::Up				=>	sub { $this->show_size( 0,-1) } ],
+				['Line spacing +'		=> 'AltDown'		=>	km::Alt|kb::Down			=>	sub { $this->show_size( 0, 1) } ],
 				[],
-				['~Close'			=> 'CtrlW'			=> '^W'		=> sub { $this-> file_close }],
-#				['Re~place pages'	=> 'Ctrl+L'			=> '^L'		=> sub { $this-> file_replace }],
+				['~Close'				=> 'CtrlW'			=> '^W'		=> sub { $this-> file_close }],
+#				['Re~place pages'		=> 'Ctrl+L'			=> '^L'		=> sub { $this-> file_replace }],
 			]],
 			[ '~Help' => [
-				["~About ver. $Prima::CodeManager::CodeManager::VERSION" => sub { $this-> about }],
+				["~About ver. $VERSION"	=> sub { $this-> about }],
 			]],
 		],
 		onClose		=>	sub {
@@ -380,12 +449,14 @@ sub open
 		}
 		CORE::close ($FH);
 	}
+
 	unless ( $self->{global}->{GLOBAL}->{name} ) {
 		$self->{global}->{GLOBAL}->{name} = $project_file;
 		$self->{global}->{GLOBAL}->{name} =~ s/\.cm$//;
 	}
 	$self->{mw}->set( text => $self->{global}->{GLOBAL}->{name});
 	$self->{global}->{GLOBAL}{notebook_fontSize} ||= 10;
+
 	$self->{global}->{extensions} = '';
 	my $i = 0;
 	while ( $self->{global}->{DIRECTORY}->{$_OS."_$i"} ) {
@@ -395,6 +466,9 @@ sub open
 		$self->{global}->{DIRECTORY}->{"directory_$i"}  =~ s/\%CodeManager\%/$CodeManager_directory/g;
 		$self->{global}->{DIRECTORY}->{"extensions_$i"} ||= '';
 		$self->{global}->{extensions} .= '|'.$self->{global}->{DIRECTORY}->{"extensions_$i"} if $self->{global}->{DIRECTORY}->{"extensions_$i"};
+		$self->{global}->{DIRECTORY}->{"sorting_$i"} ||= 'by extension';
+		$self->{BRANCH}->[$i]->{sao_library} = $self->{global}->{DIRECTORY}->{"sao_library_$i"} || '.';
+
 		$i++;
 	}
 	$self->{global}->{extensions} = 'nil|dir|'.$self->{global}->{extensions};
@@ -414,24 +488,48 @@ sub open
 
 	return;
 }
+
 ####################################################################
+
 sub make_tree
 {
 	my ( $self ) = shift;
-	$self->{global}->{GLOBAL}{tree_itemIndent} ||= 16;
-	$self->{global}->{GLOBAL}{tree_itemIndent}   = 16 if $self->{global}->{GLOBAL}{tree_itemIndent} < 16;
+
+	#we remember the topItem in the tree before refreshing:
+	$self->{expanded}->{topItem} = 0;
+	$self->{expanded}->{topItem} = $self->{tree}->topItem if $self->{tree};
+
+	$self->{global}->{GLOBAL}{tree_itemHeight} += 0;
+	$self->{global}->{GLOBAL}{tree_itemHeight}  = 12 if $self->{global}->{GLOBAL}{tree_itemHeight} < 12;
+
+	$self->{global}->{GLOBAL}{tree_itemIndent} += 0;
+	$self->{global}->{GLOBAL}{tree_itemIndent}  =
+		$self->{global}->{GLOBAL}{tree_itemIndent} < $self->{global}->{GLOBAL}{tree_itemHeight}
+		? $self->{global}->{GLOBAL}{tree_itemHeight}
+		: $self->{global}->{GLOBAL}{tree_itemIndent}
+	;
+
 	my ( $type_dimen, $font_dimen ) = ( 'size', int( 0.625 * $self->{global}->{GLOBAL}{tree_itemHeight}));
-	if ( $self->{global}->{GLOBAL}{tree_fontHeight}
-		&& $self->{global}->{GLOBAL}{tree_fontHeight} > 0
-	) {
+
+	if ( $self->{global}->{GLOBAL}{tree_fontHeight} && $self->{global}->{GLOBAL}{tree_fontHeight} > 0 ) {
+
 		$type_dimen	= 'height';
-		$font_dimen	=  $self->{global}->{GLOBAL}{tree_fontHeight};
-	} elsif ( $self->{global}->{GLOBAL}{tree_fontSize}
-		&& $self->{global}->{GLOBAL}{tree_fontSize} > 0
-	) {
+		$font_dimen	=
+			$self->{global}->{GLOBAL}{tree_fontHeight} < $self->{global}->{GLOBAL}{tree_itemHeight}
+			? $self->{global}->{GLOBAL}{tree_fontHeight}
+			: $self->{global}->{GLOBAL}{tree_itemHeight}
+		;
+
+	} elsif ( $self->{global}->{GLOBAL}{tree_fontSize} && $self->{global}->{GLOBAL}{tree_fontSize} > 0 ) {
+
 		$type_dimen	= 'size';
-		$font_dimen	=  $self->{global}->{GLOBAL}{tree_fontSize};
+		$font_dimen	=
+			$self->{global}->{GLOBAL}{tree_fontSize} < 0.625 * $self->{global}->{GLOBAL}{tree_itemHeight}
+			? $self->{global}->{GLOBAL}{tree_fontSize}
+			: 0.625 * $self->{global}->{GLOBAL}{tree_itemHeight}
+		;
 	}
+
 	$self->{global}->{GLOBAL}{tree_fontName}   ||= 'DejaVu Sans Mono';
 	my @items = [];
 	my $i = 0;
@@ -450,6 +548,11 @@ sub make_tree
 		my $ext_exclude = '\.~CodeManager';		$ext_exclude .= '|'.$self->{global}->{DIRECTORY}->{"ext_exclude_$i"} if $self->{global}->{DIRECTORY}->{"ext_exclude_$i"};
 		my $dir_exclude = '\.~CodeManager';		$dir_exclude .= '|'.$self->{global}->{DIRECTORY}->{"dir_exclude_$i"} if $self->{global}->{DIRECTORY}->{"dir_exclude_$i"};
 
+
+#		if ( $self->{global}->{DIRECTORY}->{"host_$i"} ) {
+#			$self->connect( $i );
+#		}
+
 		$items[0]->[$i][1] = [] unless $self-> read_tree( $items[0]->[$i][1], $directory, 1, $i, $ext_exclude, $dir_exclude );
 		$items[0]->[$i][2] = $self->{expanded}->{$name} || 0;
 		$self->{list}->[$i] = $items[0]->[$i][0];
@@ -457,9 +560,11 @@ sub make_tree
 	}
 	$self->{listdim} = 1;
 	delete $self->{tree} if $self->{tree};
+
 	$self->{tree} = $self->{frame_left}-> insert_to_frame(
 		1,
 		'CodeManager::Outline' =>
+		name			=>	'tree',
 		multiSelect		=>	0,
 		extendedSelect	=>	0,
 		path			=>	'./',
@@ -471,7 +576,8 @@ sub make_tree
 		},
 		light3DColor=>	$self->licz_kolor( 0xffffff, $project_color, 0.2 ),
 		dark3DColor	=>	$self->licz_kolor( 0xffffff, $project_color, 0.4 ),
-		darkColor	=>	$self->licz_kolor( 0xffffff, $project_color, 0.8 ),
+		darkColor	=>	$self->licz_kolor( 0xf7f7f7, $self->angle_color( $int_color , 255, 220 ), 0 ),
+
 		frameProfile => {
 			borderWidth	=>	1,
 			backColor	=>	$self->licz_kolor( 0xffffff, $project_color, 0.5 ),
@@ -537,6 +643,8 @@ sub make_tree
 			}
 		},
 	);
+
+	$self->{tree}->set( topItem => $self->{expanded}->{topItem} ) if $self->{expanded}->{topItem};
 	$developer{ftt} = $self-> {frame_left}-> insert_to_frame (
 		0,
 		CheckList	=>
@@ -565,7 +673,10 @@ sub make_tree
 		dark3DColor	=>	$self->licz_kolor( 0xffffff, $project_color, 0.2 ),
 	);
 }
+
+
 ####################################################################
+
 sub save
 {
 	my $r =  Prima::MsgBox::message_box (
@@ -573,14 +684,50 @@ sub save
 		'Sorry! Project saving is not ready yet...', mb::OK
 	);
 }
+
 ####################################################################
+
 sub read_tree {
 	my ( $self, $object, $dir, $level, $nr_of_dir, $ext_exclude, $dir_exclude ) = @_;
 	$dir =~  s/\/$//;
+
 	my $k = 0;
+	my $type = '';
+	my @fils = $self-> read_dir( $dir, 'all', $nr_of_dir );
+#	@fils = sort_ext( @fils );
+#	@fils = sort mysort ( @fils );
+
+	foreach (@fils) {
+#		( $type, $_ ) = ( $1, $2 ) if $_ =~ /^(.*?)\-.*?([^\/]*)$/;
+#		if ( $type eq 'fil' ) {
+		$_ = $1 if $_ =~ /^.*?([^\/]*)$/;
+
+		if ( -f "$dir/$_" ) {
+			next if $ext_exclude && $_ =~ /$ext_exclude$/;
+			$_ =~  /\.(\w+)$/;
+			my $ext = lc($1);
+			$ext = '' unless $ext;
+			$object->[$k][0] = [ $_, $self->{images}->{$ext}||$self->{images}->{nil}, $level, 'file', $dir, $nr_of_dir, "$dir/$_" ];
+			$self->{listdim} ++;
+			$self->{list}->[ $self->{listdim} ] = $object->[$k][0];
+			$k++;
+		}
+
+		if ( -d "$dir/$_" ) {
+			next if $dir_exclude && $_ =~ /$dir_exclude$/;
+			$object->[$k][0] = [ $_, $self->{images}->{dir}, $level, '', $dir, $nr_of_dir, "$dir/$_" ];
+			$object->[$k][1] = [];
+			$object->[$k][1] = [] unless $self-> read_tree( $object->[$k][1], "$dir/$_", $level + 1, $nr_of_dir, $ext_exclude, $dir_exclude );
+			$object->[$k][2] = $self->{expanded}->{"$dir/$_"}||0;
+			$self->{listdim} ++;
+			$self->{list}->[ $self->{listdim} ] = $object->[$k][0];
+			$k++;
+		}
+	}
+
+=pod
 	my @fils = $self->read_dir( $dir, 'file', $nr_of_dir );
 	for ( my $i = 0 ; $i < @fils ; $i++ ) {
-#		next if $fils[$i] =~ /\.\~CodeManager$/;
 		next if $ext_exclude && $fils[$i] =~ /$ext_exclude$/;
 		$fils[$i] =~  /\.(\w+)$/;
 		my $ext = lc($1);
@@ -601,9 +748,13 @@ sub read_tree {
 		$self->{list}->[ $self->{listdim} ] = $object->[$k][0];
 		$k++;
 	}
+=cut
+
 	return $k;
 }
+
 ################################################################################
+
 sub read_dir {
 	my ( $self, $dir, $type, $nr_of_dir ) = @_;
 	my @contents;
@@ -611,32 +762,41 @@ sub read_dir {
 		@contents = readdir( $DIR );
 		closedir( $DIR );
 	}
-	@contents = sort_ext( @contents );
+#	if ( $self->{global}->{sorting} =~ /names/i ) {
+#	print "sorting_$nr_of_dir = ",$self->{global}->{DIRECTORY}->{"sorting_$nr_of_dir"},"\n";
+
+	if ( $self->{global}->{DIRECTORY}->{"sorting_$nr_of_dir"} =~ /name/i ) {
+		@contents = sort mysort @contents;
+	} else {
+		@contents = sort_ext( @contents );
+	}
+
+#	@contents = sort @contents;
+
+#	foreach my $ext (sort {lc($contents{$a}) cmp lc($contents{$b}) } keys %contents) {
+#		push @cont, $contents{$ext}
+#	}
+#	@contents = @cont;
+
 	my @result;
-	$self->{global}->{GLOBAL}->{search_directories} = '' unless $self->{global}->{GLOBAL}->{search_directories};
-	for ( my $i=0; $i < @contents ; $i++ ) {
-		if ( $contents[$i] ne '.' && $contents[$i] ne '..' ) {
-			if ( -d $dir.'/'.$contents[$i] ) {
-				push @result, $contents[$i]
-					if $type eq 'dir' &&
-						(	$contents[$i] =~ /$self->{global}->{DIRECTORY}->{"directories_$nr_of_dir"}/i
-							|| $self->{global}->{DIRECTORY}->{"directories_$nr_of_dir"} =~ /all/i
-						);
-#						( -f $dir.'/'.$contents[$i].'/.exists'
-#							|| $contents[$i] =~ /$self->{global}->{DIRECTORY}->{"directories_$nr_of_dir"}/i
-#							|| $self->{global}->{DIRECTORY}->{"directories_$nr_of_dir"} =~ /all/i
-#							|| $self->{global}->{GLOBAL}->{search_directories} =~ /all/i
-#						);
+	$self->{global}->{GLOBAL}->{search_directories} ||= '';
+	foreach (@contents) {
+		if ( $_ ne '.' && $_ ne '..' ) {
+			if ( -d "$dir/$_" ) {
+#				push @result, "dir-$dir/$_"
+				push @result, "$dir/$_" if $type =~ /dir|all/ &&
+				(	$_ =~ /$self->{global}->{DIRECTORY}->{"directories_$nr_of_dir"}/i
+					|| $self->{global}->{DIRECTORY}->{"directories_$nr_of_dir"} =~ /all/i
+				);
 			} else {
-				$contents[$i] =~  /\.(\w+)$/;
-				my $ext = lc($1);
+				$_ =~  /\.(\w+)$/;
+				my $ext = $1 ? lc($1) : '';
 				$ext = '' unless $ext;
-				push @result, $contents[$i] if
-					$type eq 'file' &&
-					(	$self->{global}->{DIRECTORY}->{"extensions_$nr_of_dir"} =~ /all/i
-						|| $contents[$i] =~ /$self->{global}->{DIRECTORY}->{"extensions_$nr_of_dir"}/i
-#						|| $self->{global}->{DIRECTORY}->{"extensions_$nr_of_dir"} =~ /$ext/i
-					);
+#				push @result, "fil-$dir/$_"
+				push @result, "$dir/$_" if $type =~ /file|all/ &&
+				(	$_ =~ /$self->{global}->{DIRECTORY}->{"extensions_$nr_of_dir"}/i
+					|| $self->{global}->{DIRECTORY}->{"extensions_$nr_of_dir"} =~ /all/i
+				);
 			}
 		}
 	}
@@ -650,29 +810,36 @@ sub close
 	return 0;
 }
 ################################################################################
-sub mysort {
+sub mysort
+{
 	lc($a) cmp lc($b);
 }
-#----------------------
-sub sort_ext {
+# ------------------------------------------------------------------------------
+sub sort_ext
+{
 	my %ext_contents;
-	while ( my $file = shift @_ ) {
-		my $ext = '';
+	while ( my $file =  shift @_ ) {
+		my $ext = chr(254);
 		$ext = $1 if $file =~ /\.([^\.]*)$/;
 		$ext_contents{"ext_${ext}_$file"} = $file;
 	}
 	my @contents;
+# according extentions:
 	foreach my $ext (sort mysort (keys(%ext_contents))) {
-		push @contents, $ext_contents{ $ext }
+		push @contents, $ext_contents{$ext}
 	}
+# according names:
+#	foreach my $ext (sort {lc($ext_contents{$a}) cmp lc($ext_contents{$b}) } keys %ext_contents) {
+#		push @contents, $ext_contents{$ext}
+#	}
 	return @contents;
 }
 ################################################################################
 sub make_notebook
 {
 	my ( $self ) = shift;
-	my $fontSize = $self->{global}->{GLOBAL}{notebook_fontSize}+0; $fontSize = 10 if $fontSize < 1;
-	my $fontName = $self->{global}->{GLOBAL}{notebook_fontName}||'DejaVu Sans Mono';
+	my $fontSize = $self->{global}->{GLOBAL}{notebook_fontSize} + 0; $fontSize = 10 if $fontSize < 1;
+	my $fontName = $self->{global}->{GLOBAL}{notebook_fontName} || 'DejaVu Sans Mono';
 	my $sliderWidth = 4;
 	undef $developer{notes};
 	$developer{notes} = $self->{frame_top}->insert_to_frame (
@@ -705,10 +872,12 @@ sub make_notebook
 #	}
 	@list_of_files = ();
 	$file_number = 0;
-	$developer{notes}->set_tabs( @list_of_files );
-	$developer{notes}->repaint;
+	$developer{notes}-> set_tabs( @list_of_files );
+	$developer{notes}-> repaint;
 }
+
 ################################################################################
+
 sub popup_show
 {
 	my ( $self, $tree, $clicked ) = @_;
@@ -723,8 +892,8 @@ sub popup_show
 	while ( my $key = $_[$i] ) { $par{$key} = $_[$i+1]; $i += 2 }
 	$par{left}   = 0 unless $par{left};
 	$par{bottom} = 0 unless $par{bottom};
-	$par{width}  = 540;
-	$par{height} = 200;
+	$par{width}  = 740;
+	$par{height} = 240;
 	my $x = [$self->{mw}->origin]->[0] + [$self->{frame_left}->pointerPos]->[0];
 	my $y = [$self->{mw}->origin]->[1] + [$self->{frame_left}->pointerPos]->[1] - $par{height} + $par{itemHeight};
 	my $tmp_popup = Prima::Dialog-> create(
@@ -788,7 +957,7 @@ sub popup_show
 #----------------------------------------------------------------
 	my $input = $tmp_popup-> insert( InputLine =>
 		origin		=>	[  10,  $par{height} -55 ],
-		size		=>	[ 280,  20 ],
+		size		=>	[ 480,  20 ],
 		text		=>	$name,
 		flat		=>	0,
 		alignment	=>	ta::Left,
@@ -805,20 +974,24 @@ sub popup_show
 	my @template_names = ('...');
 	my @template_files = (''   );
 	my $j = 0;
-	for ( my $i=0; $i < @lista; $i++ ) {
-		if ( $lista[$i] =~ /^(.*?)=(.*)$/ ) {
+	foreach (@lista) {
+		if ( $_ =~ /^(.*?)=(.*)$/ ) {
 			my ( $file, $name ) = ( $1, $2 );
 			$file =~ s/^\s*//;	$file =~ s/\s*$//;
 			$name =~ s/^\s*//;	$name =~ s/\s*$//;
 			next unless $file && $name;
-			$j++;
-			push @template_files, $file;
-			push @template_names, "$j. $name";
+			if ( $file ne 'line' ) {
+				$j++;
+				push @template_files, $file;
+				push @template_names, "$j. $name";
+			} else {
+				push @template_names, "";
+			}
 		}
 	}
 	my $check1 = $tmp_popup-> insert( ComboBox =>
 		origin		=>	[  10,  $par{height} -80 ],
-		size		=>	[ 280,  20 ],
+		size		=>	[ 480,  20 ],
 		style		=>	(cs::DropDownList),
 		items		=>	[( @template_names )],
 		flat		=>	1,
@@ -829,7 +1002,7 @@ sub popup_show
 	);
 #-------------------------------------------------------------
 	$tmp_popup-> insert( Button =>
-		origin		=>	[ 300, $par{height} - 55 ],
+		origin		=>	[ 500, $par{height} - 55 ],
 		size		=>	[ 230,  20 ],
 		text		=>	'Insert',
 		enabled		=>	1,
@@ -879,7 +1052,7 @@ sub popup_show
 	);
 #-------------------------------------------------------------
 	$tmp_popup->insert( Button =>
-		origin		=>	[ 300,  $par{height} - 80 ],
+		origin		=>	[ 500,  $par{height} - 80 ],
 		size		=>	[ 230,  20 ],
 		text		=>	'Update',
 		enabled		=>	1,
@@ -913,7 +1086,7 @@ sub popup_show
 	);
 #-------------------------------------------------------------
 	$tmp_popup->insert( Button =>
-		origin		=>	[ 300,  $par{height} -105 ],
+		origin		=>	[ 500,  $par{height} -105 ],
 		size		=>	[ 230,  20 ],
 		text		=>	'Backup',
 		enabled		=>	1,
@@ -941,7 +1114,7 @@ sub popup_show
 	);
 #-------------------------------------------------------------
 	$tmp_popup->insert( Button =>
-		origin		=>	[ 300,  $par{height} -130 ],
+		origin		=>	[ 500,  $par{height} -130 ],
 		size		=>	[ 230,  20 ],
 		text		=>	'Copy',
 		enabled		=>	1,
@@ -977,7 +1150,7 @@ sub popup_show
 #-------------------------------------------------------------
 
 	$tmp_popup->insert( Button =>
-		origin		=>	[ 300,  $par{height} -155 ],
+		origin		=>	[ 500,  $par{height} -155 ],
 		size		=>	[ 230,  20 ],
 		text		=>	'Delete',
 		enabled		=>	1,
@@ -1005,7 +1178,7 @@ sub popup_show
 	);
 #-------------------------------------------------------------
 	$tmp_popup->insert( Button =>
-		origin		=>	[ 300,  10 ],
+		origin		=>	[ 500,  10 ],
 		size		=>	[ 230,  20 ],
 		text		=>	'find files with the text',
 		enabled		=>	1,
@@ -1017,20 +1190,20 @@ sub popup_show
 		font 		=>	{ size => 9, style => fs::Normal, },
 		onClick		=>	sub {
 			my @files	=	();
-			ftt_read_tree (
-				\@files,
-				$self->{global}->{DIRECTORY}->{"directory_$bra"},
-				$self->{global}->{DIRECTORY}->{"directory_$bra"},
-				$self->{global}->{extensions},
-				$input-> text,
-			);
+
+			foreach ( @{$self->{list}} ) {
+				my $fn = $_->[4]."/".$_->[0];
+				next unless $_->[3] eq 'file' && $fn =~ /$self->{global}->{DIRECTORY}->{"directory_$bra"}/;
+				push @files, $fn if ftt_has_feature( $fn, $input-> text );
+			}
+
 			my $cap = join "\n",@files,"\n";
 			$developer{ftt}-> set (
 				items	=>	[@files],
 				onMouseClick	=>	sub {
 					my ($this, $btn, $mod, $x, $y, $dblclk ) = @_;
 					my $clicked	= int( $this-> topItem + ($developer{ftt}-> height - $y)/$this-> itemHeight );
-					my $fn		= $developer{ftt}-> items-> [$clicked] ? $self->{global}->{DIRECTORY}->{"directory_$bra"}."/".$developer{ftt}-> items-> [$clicked] : '';
+					my $fn		= $developer{ftt}-> items-> [$clicked] ? $developer{ftt}-> items-> [$clicked] : '';
 					$self-> file_edit( $fn, $bra ) if $dblclk && -f $fn;
 				}
 			);
@@ -1041,7 +1214,9 @@ sub popup_show
 	$tmp_popup->execute;
 	return $tmp_popup;
 }
+
 ########################################################################
+
 sub make_object
 {
 	my ( $self ) = shift;
@@ -1054,43 +1229,47 @@ sub make_object
 		$ext     = $1;
 		$default = "$home_directory/templates/default/$ext.pl";
 	}
+
 	if ( $par{action} eq 'Insert' ) {
+
 		if ( -e $par{name} ) {
+
 			return "Object with the name: ['$par{name}'] already exists!";
+
 		} else {
+
 			# file is created when extension is defined:
 			if ( $ext ) {
 				# if there is template chosen:
 				if ( $par{template} && -e "$home_directory/templates/".$par{template} ) {
-					our @_ARGV = ( $self, $self->{global}->{DIRECTORY}->{"directory_".$par{branch}}, $par{name} );
+					our @_ARGV = ( $self, $self->{global}->{DIRECTORY}->{"directory_".$par{branch}}, $par{name}, $par{branch}||0 );
 					eval $self-> read_file( "$home_directory/templates/".$par{template});
-					return $@ || 'OK';
 				# next if there is a default extension template:
 				} elsif ( -e $default ) {
 					our @_ARGV = ( $self, $self->{global}->{DIRECTORY}->{"directory_".$par{branch}}, $par{name} );
 					eval $self-> read_file( $default );
-					return $@ || 'OK';
 				# remain only to create empty file:
 				} else {
 					eval { $self-> write_to_file( $par{name}, '' ); };
-					return $@ || 'OK';
 				}
 			} else {
 				# if no extension there is a directory:
 				# if there is template chosen:
 				if ( $par{template} && -e "$home_directory/templates/".$par{template} ) {
-					our @_ARGV = ( $self, $self->{global}->{DIRECTORY}->{"directory_".$par{branch}}, $par{name} );
+
+					our @_ARGV = ( $self, $self->{global}->{DIRECTORY}->{"directory_".$par{branch}}, $par{name}, $par{branch}||0 );
 					eval $self-> read_file( "$home_directory/templates/".$par{template} );
-					return $@ || 'OK';
-				# remain only to create empty directory (with .exists file only:
+					# remain only to create empty directory (with .exists file only:
+
 				} else {
 					eval { make_path ( $par{name} ) };
-					return $@ if $@;
-					$self->write_to_file( $par{name}.'/.exists','');
-					return 'OK';
+#					$self->write_to_file( $par{name}.'/.exists','');
 				}
 			}
+
+			return $@ || 'OK';
 		}
+
 	} elsif ( $par{action} eq 'Copy' ) {
 
 		if ( -f $par{old_name} ) {
@@ -1145,60 +1324,20 @@ sub make_object
 
 		} elsif ( -d $par{name} ) {
 
-			eval { dirmove( $par{name}, $par{name}.".~CodeManager" ) } ;
+			eval { remove_tree( $par{name} ) };
 		}
 
 		return $@ || 'OK';
+
 	} else {
+
 		return "Incorect action: ".$par{action};
 	}
 	return '';
 }
+
 ################################################################################
-sub ftt_read_tree {
-	my ( $files_reference, $main, $dir, $exts, $str ) = @_;
-	$dir =~  s/\/$//;
-	my @fils = ftt_read_dir( $dir, 'file', $exts, $str );
-	for ( my $i = 0 ; $i < @fils ; $i++ ) {
-		my $final_name = $dir.'/'.$fils[$i];
-		$final_name =~ s/^$main//;
-		push @{$files_reference}, $final_name;
-	}
-	my @dirs = ftt_read_dir( $dir, 'dir' , $exts, $str );
-	for ( my $i = 0 ; $i < @dirs ; $i++ ) {
-		ftt_read_tree( $files_reference, $main, $dir.'/'.$dirs[$i], $exts, $str ) if -e $dir.'/'.$dirs[$i].'/.exists';
-	}
-	return 'OK';
-}
-##########################################################################
-sub ftt_read_dir {
-	my ( $dir, $object, $exts, $str ) = @_;
-	my @names;
-	my @result;
-	my $ext = '';
-	if ( opendir(my $DIR, $dir )) {
-		@names = readdir( $DIR );
-		closedir( $DIR );
-	}
-	@names = sort_ext( @names );
-	for ( my $i=0; $i < @names ; $i++ ) {
-		if ( $names[$i] ne '.' && $names[$i] ne '..' ) {
-			if ( -d $dir.'/'.$names[$i] ) {
-				push @result, $names[$i] if $object eq 'dir';
-			} else {
-				$ext = '';
-				$ext = $1 if $names[$i] =~  /\.(\w+)$/;
-				push @result, $names[$i] if $ext
-					&& $object eq 'file'
-					&& ftt_has_feature( $dir.'/'.$names[$i], $str );
-#					&& $names[$i] =~  /\.$exts$/
-#					&& $exts =~  /$ext$/
-			}
-		}
-	}
-	return @result;
-}
-##########################################################################
+
 sub ftt_has_feature {
 	my ( $name, $str ) = @_;
 	if ( CORE::open( my $FH, "<$name" )) {
@@ -1210,7 +1349,19 @@ sub ftt_has_feature {
 	}
 	return 0;
 }
+
 ##########################################################################
+
+sub meld
+{
+	my ( $self ) = shift;
+
+	my ( $file1, $file2 ) = splice( @Prima::CodeManager::list_of_files, -2 );
+
+	system( "meld $file1 $file2  > /dev/null &") if -f $file1 && -f $file2;
+
+	return
+}
 
 1;
 
@@ -1285,7 +1436,7 @@ configuration (with a I<.CodeManager> extensions) and I<templates> subdirectory 
 template files (perl scripts).
 
 CodeManager uses images files that are stored in CodeManager installation sub-directory I<CodeManager/img>.
-The images are 16x16 png objects.
+The images are 12x12 png objects.
 Their names have the form I<XXX.png>, where XXX stands for the extension.
 
 Highliting files are stored similarly: in the I<hilite> subdirectory. These are perl scripts with

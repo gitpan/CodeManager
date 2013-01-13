@@ -1,3 +1,15 @@
+################################################################################
+# This is CodeManager
+# Copyright 2009-2013 by Waldemar Biernacki
+# http://codemanager.sao.pl\n" .
+#
+# License statement:
+#
+# This program/library is free software; you can redistribute it
+# and/or modify it under the same terms as Perl itself.
+#
+# Last modified (DMYhms): 13-01-2013 09:42:18.
+################################################################################
 
 use strict;
 use warnings;
@@ -54,7 +66,7 @@ sub profile_default
 		dragable       => 1,
 		hScroll        => 0,
 		focusedItem    => -1,
-		indent         => 16,
+		indent         => 12,
 		itemHeight     => $def-> {font}-> {height},
 		items          => [],
 		multiSelect    => 0,
@@ -92,9 +104,24 @@ sub init
 	my $self = shift;
 	unless ( @images) {
 		my $i = 0;
-		for ( sbmp::OutlineCollaps, sbmp::OutlineExpand) {
-			$images[ $i++] = Prima::StdBitmap::image($_);
-		}
+#this is the original method:
+#		for ( sbmp::OutlineCollaps, sbmp::OutlineExpand) {
+#			$images[$i++] = Prima::StdBitmap::image( $_ , 'sysimage.gif' );
+#		}
+
+#this is when you want to use your own images
+#		$images[0] = Prima::Image-> new( type => im::RGB, );
+#		$images[0]->load( 'minus.png' );
+#		$images[1] = Prima::Image-> new( type => im::RGB, );
+#		$images[1]->load( 'plus.png' );
+
+#this is a method of using images text represention written into a module
+		$images[0] = Prima::Image-> new( type => 24, maskColor => 1,);
+		$images[0] = Prima::CodeManager::Image::make_image( 'minus.png' );
+		$images[1] = Prima::Image-> new( type => 24, maskColor => 1,);
+		$images[1] = Prima::CodeManager::Image::make_image( 'plus.png' );
+
+
 		if ( $images[0]) {
 			@imageSize = $images[0]-> size;
 		} else {
@@ -332,7 +359,7 @@ sub on_paint
 		my $lastChild = $idx == $lim;
 
 		# outlining part
-		my $l = int(( $level + 0.5) * $indent) + $deltax + ( 16 - $indent) * 0.00000;
+		my $l = int(( $level + 0.5) * $indent) + $deltax + ( 12 - $indent) * 0.00000;
 		$levels[$position]=$l;
 		if ( $lastChild) {
 			if ( defined $lines[ $level]) {
@@ -458,16 +485,16 @@ sub on_mousedown
 		defined $self-> {mouseTransaction} ||
 		$y <  $a[1] ||
 		$y >= $a[3] ||
-		$x <  $a[0] + ( 16 - $self->{indent}) * 0.00000 ||
-		$x >= $a[2] + ( 16 - $self->{indent}) * 0.00000 ;
+		$x <  $a[0] + ( 12 - $self->{indent}) * 0.00000 ||
+		$x >= $a[2] + ( 12 - $self->{indent}) * 0.00000 ;
 
 	my $item   = $self-> point2item( $y, $size[1]);
 	my ( $rec, $lev) = $self-> get_item( $item);
 
 	if (
 		$rec &&
-		( $x >= ( 1 + $lev) * $i + $a[0] - $o - $imageSize[0] / 2 + ( 16 - $self->{indent}) * 0.00000 ) &&
-		( $x <  ( 1 + $lev) * $i + $a[0] - $o + $imageSize[0] / 2 + ( 16 - $self->{indent}) * 0.00000 )
+		( $x >= ( 1 + $lev) * $i + $a[0] - $o - $imageSize[0] / 2 + ( 12 - $self->{indent}) * 0.00000 ) &&
+		( $x <  ( 1 + $lev) * $i + $a[0] - $o + $imageSize[0] / 2 + ( 12 - $self->{indent}) * 0.00000 )
 	) {
 		$self-> adjust( $item, $rec-> [2] ? 0 : 1) if $rec-> [1];
 		return;
@@ -546,7 +573,7 @@ sub makehint
 	my @a = $self-> get_active_area;
 	my $ofs = ( $lev + 2.5) * $self-> {indent} - $self-> {offset} + $self-> {indents}-> [0];
 
-	if ( $w + $ofs <= $a[2] - 16) {
+	if ( $w + $ofs <= $a[2] - 12) {
 		$self-> makehint(0);
 		return;
 	}
@@ -578,7 +605,7 @@ sub makehint
 			$org[1] + $self-> height - $self-> {indents}-> [3] -
 				$self-> {itemHeight} * ( $itemid - $self-> {topItem} + 1),
 		],
-		width   => $w + 4 + 16,
+		width   => $w + 4 + 12,
 		text    => $self-> get_item_text( $item ),
 		visible => 1,
 	);
@@ -1480,14 +1507,14 @@ sub on_dragitem
 
 	my $path_t = "$ot/$of"; $path_t =~ s/([\/]+)/\//g;
 
-	return if $pf eq $ot;
+#	return if $pf eq $ot;
+	return if $path_f eq $path_t;
 
 	if ( $fx->[0]->[3] eq 'file' ) {
 
 		eval { File::Copy::move( $path_f, $path_t ) };
 		return if $@;
 	} else {
-		return if $ot =~ /^$pf/;
 
 		eval { File::Copy::Recursive::dirmove( $path_f, $path_t ) } ;
 		return if $@;
@@ -1752,14 +1779,14 @@ sub draw_items
 	for ( @$paintStruc) {
 		my ( $node, $left, $bottom, $right, $top, $position, $selected, $focused) = @$_;
 
-		$left += ( 16 - $self->{indent}) * 0.00000;
+		$left += ( 12 - $self->{indent}) * 0.00000;
 
 		my $img  = $node->[0]->[1];
 		my @dime = [ 0, 0 ];
 		if ( $img ) {
 			@dime = $img->size;
 			$canvas-> put_image(
-				$left - $dime[0] - 2,
+				$left - $dime[0] - 2*0.00000,
 				int( $bottom + ( $self-> {itemHeight} - $dime[1] ) / 2 ),
 				$img
 			);
@@ -1812,7 +1839,7 @@ use vars qw(@ISA);
 my $unix = Prima::Application-> get_system_info-> {apc} == apc::Unix || $^O =~ /cygwin/;
 my @images;
 my @drvImages;
-
+=pod
 {
 	my $i = 0;
 	my @idx = (  sbmp::SFolderOpened, sbmp::SFolderClosed);
@@ -1828,6 +1855,7 @@ my @drvImages;
 		}
 	}
 }
+=cut
 
 sub profile_default
 {

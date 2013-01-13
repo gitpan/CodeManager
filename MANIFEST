@@ -3,10 +3,13 @@ Makefile.PL
 MANIFEST
 README
 t/Prima-CodeManager.t
+lib/Prima/CodeManager/Changes
+lib/Prima/CodeManager/license.txt
 lib/Prima/CodeManager/CodeManager.pl
 lib/Prima/CodeManager/CodeManager.pm
 lib/Prima/CodeManager/Edit.pm
 lib/Prima/CodeManager/File.pm
+lib/Prima/CodeManager/Image.pm
 lib/Prima/CodeManager/Label.pm
 lib/Prima/CodeManager/Misc.pm
 lib/Prima/CodeManager/Notebooks.pm
@@ -24,6 +27,7 @@ lib/Prima/CodeManager/hilite/hilite_hs.pl
 lib/Prima/CodeManager/hilite/hilite_html.pl
 lib/Prima/CodeManager/hilite/hilite_ini.pl
 lib/Prima/CodeManager/hilite/hilite_js.pl
+lib/Prima/CodeManager/hilite/hilite_log.pl
 lib/Prima/CodeManager/hilite/hilite_php.pl
 lib/Prima/CodeManager/hilite/hilite_pl.pl
 lib/Prima/CodeManager/hilite/hilite_rb.pl
@@ -34,17 +38,15 @@ lib/Prima/CodeManager/hilite/hilite_sql.pl
 lib/Prima/CodeManager/hilite/hilite_tdu.pl
 lib/Prima/CodeManager/hilite/hilite_tex.pl
 lib/Prima/CodeManager/hilite/hilite_tt.pl
+lib/Prima/CodeManager/hilite/hilite_tt2.pl
 lib/Prima/CodeManager/hilite/hilite_txt.pl
 lib/Prima/CodeManager/hilite/hilite_xml.pl
 lib/Prima/CodeManager/img/bash.png
 lib/Prima/CodeManager/img/bat.png
+lib/Prima/CodeManager/img/bmp.png
 lib/Prima/CodeManager/img/cm.ico
 lib/Prima/CodeManager/img/cm.png
-lib/Prima/CodeManager/img/cm128.png
-lib/Prima/CodeManager/img/cm32.ico
 lib/Prima/CodeManager/img/cm32.png
-lib/Prima/CodeManager/img/cm512.png
-lib/Prima/CodeManager/img/cm64.png
 lib/Prima/CodeManager/img/conf.png
 lib/Prima/CodeManager/img/css.png
 lib/Prima/CodeManager/img/dir.png
@@ -56,6 +58,7 @@ lib/Prima/CodeManager/img/html.png
 lib/Prima/CodeManager/img/ico.png
 lib/Prima/CodeManager/img/ini.png
 lib/Prima/CodeManager/img/js.png
+lib/Prima/CodeManager/img/log.png
 lib/Prima/CodeManager/img/mnu.png
 lib/Prima/CodeManager/img/nil.png
 lib/Prima/CodeManager/img/php.png
@@ -68,7 +71,6 @@ lib/Prima/CodeManager/img/root.png
 lib/Prima/CodeManager/img/sao.png
 lib/Prima/CodeManager/img/seal.png
 lib/Prima/CodeManager/img/sql.png
-lib/Prima/CodeManager/img/sysimage.gif
 lib/Prima/CodeManager/img/tdu.png
 lib/Prima/CodeManager/img/tex.png
 lib/Prima/CodeManager/img/txt.png
