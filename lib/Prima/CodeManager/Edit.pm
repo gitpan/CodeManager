@@ -8,7 +8,7 @@
 # This program/library is free software; you can redistribute it
 # and/or modify it under the same terms as Perl itself.
 #
-# Last modified (DMYhms): 13-01-2013 09:41:52.
+# Last modified (DMYhms): 14-01-2013 07:15:21.
 ################################################################################
 
 use strict;
@@ -701,13 +701,13 @@ sub on_paint
 			my $numbers = '';
 			for ( $self->{topLine} + 1 .. $self->{topLine} + $self->{rows} + 2 ) {
 				$numbers .= "$_\n";
-=pod
-				if ( $self->{hiliteBlok_value}->[$_-1] ) {
-					$numbers .= $_.':'.$self->{hiliteBlok_value}->[$_-1]."\n";
-				} else {
-					$numbers .= "$_  \n";
-				}
-=cut
+
+#				if ( $self->{hiliteBlok_value}->[$_-1] ) {
+#					$numbers .= $_.':'.$self->{hiliteBlok_value}->[$_-1]."\n";
+#				} else {
+#					$numbers .= "$_  \n";
+#				}
+
 			}
 			$Prima::CodeManager::developer{ "numer_$numer"}->set( text => $numbers );
 		}
@@ -720,29 +720,30 @@ sub on_paint
 		print $_HTML_FILE '<a href="http://sao.pl" style="color:#cccccc;" target="NewWindow">Coloured by CodeManager</a>'."\n\n";
 	}
 
-#	$self->{hiliteBlokColorIndex} = -1;
-=pod
-	if ( scalar @{$self->{hiliteBlok}} ) {
-		my $tresc = '';
-		my $row   = $self-> {topLine} - 1;
-		while ( $row >= 0 ) {
-			$tresc = @{$self-> {lines}}[$row];
-			my $nr = 0;
-#			while ( $self->{hiliteBgCo}->[ 4 * $nr ] ) {
-				if ( $tresc =~ /$self->{hiliteBlok}->[4*$nr]/ ) {
-					$self->{hiliteBlokColorIndex} = $nr;
-					last;
-				}
-				if ( $tresc =~ /$self->{hiliteBlok}->[4*$nr+1]/ ) {
-					$self->{hiliteBlokColorIndex} = -1;
-					last;
-				}
-#				$nr++;
-#			}
-			$row--;
-		}
-	}
-=cut
+###	$self->{hiliteBlokColorIndex} = -1;
+
+
+#	if ( scalar @{$self->{hiliteBlok}} ) {
+#		my $tresc = '';
+#		my $row   = $self-> {topLine} - 1;
+#		while ( $row >= 0 ) {
+#			$tresc = @{$self-> {lines}}[$row];
+#			my $nr = 0;
+###			while ( $self->{hiliteBgCo}->[ 4 * $nr ] ) {
+#				if ( $tresc =~ /$self->{hiliteBlok}->[4*$nr]/ ) {
+#					$self->{hiliteBlokColorIndex} = $nr;
+#					last;
+#				}
+#				if ( $tresc =~ /$self->{hiliteBlok}->[4*$nr+1]/ ) {
+#					$self->{hiliteBlokColorIndex} = -1;
+#					last;
+#				}
+###				$nr++;
+###			}
+#			$row--;
+#		}
+#	}
+
 
 # drawing sheet
 	my @clipRect = $self-> clipRect;
@@ -1220,24 +1221,22 @@ sub on_keydown
 
 #	$self->{hiliteBlok_modified} = 1;
 
-=pod
-	my @cs = $self-> cursor;
-	my $curr_row  = $self->{topLine} + $cs[1];
-	my $blok_beg  = $self->{hiliteBlok}->[0];
-	my $blok_end  = $self->{hiliteBlok}->[1];
+#	my @cs = $self-> cursor;
+#	my $curr_row  = $self->{topLine} + $cs[1];
+#	my $blok_beg  = $self->{hiliteBlok}->[0];
+#	my $blok_end  = $self->{hiliteBlok}->[1];
 
-	my ( $prev_type, $next_type ) = ( 0, 0 );
-	$prev_type =  1 if $self-> get_line( $cs[1] ) =~  /($blok_beg|blok_end)/;
+#	my ( $prev_type, $next_type ) = ( 0, 0 );
+#	$prev_type =  1 if $self-> get_line( $cs[1] ) =~  /($blok_beg|blok_end)/;
 
-	my $modify = 0;
-	for (my $i = $cs[1] ; $i < $cs[1] + $self->{rows} ; $i++ ) {
-		$modify = 1 if $self-> get_line( $i ) && (
-			$self-> get_line( $i ) =~  /($blok_beg|blok_end)/ || $self->{hiliteBlok_value}->[ $i ]
-		);
-		last if $modify
-	}
+#	my $modify = 0;
+#	for (my $i = $cs[1] ; $i < $cs[1] + $self->{rows} ; $i++ ) {
+#		$modify = 1 if $self-> get_line( $i ) && (
+#			$self-> get_line( $i ) =~  /($blok_beg|blok_end)/ || $self->{hiliteBlok_value}->[ $i ]
+#		);
+#		last if $modify
+#	}
 
-=cut
 	if ($key == kb::Enter	|| $key == kb::Backspace	|| $key == kb::Return ||
 		$key == kb::Tab		|| $key == kb::Delete
 	) {

@@ -8,7 +8,7 @@
 # This program/library is free software; you can redistribute it
 # and/or modify it under the same terms as Perl itself.
 #
-# Last modified (DMYhms): 13-01-2013 09:41:56.
+# Last modified (DMYhms): 14-01-2013 07:15:49.
 ################################################################################
 
 package Prima::CodeManager::File;
@@ -245,57 +245,6 @@ sub file_edit
 			style	=>	fs::Normal,
 		},
 	);
-=pod
-	{
-		my $ite = 0;
-		my $ope = 0;
-		my $lev = 0;
-		my $clo = 0;
-		while ( $cap =~ /^(.*)$/mg ) {
-			my $row = $1||'';
-			$row .= '.';
-			$ope = -1 + scalar @{[(split '{', $row)]};
-			$lev = $lev + $ope - $clo;
-			$Prima::CodeManager::developer{ "block_$pageCount-ope" }->[$ite] = $ope;
-			$Prima::CodeManager::developer{ "block_$pageCount-lev" }->[$ite] = $lev;
-			$Prima::CodeManager::developer{ "block_$pageCount-clo" }->[$ite] = $clo;
-			$clo = -1 + scalar @{[(split '}', $row)]};
-			$ite++;
-		}
-	}
-
-	{
-		my $ite = 0;
-		my $lev = 0;
-		while ( $cap =~ /^(=*)(\w*)/mg ) {
-			if ( $1 eq '=' && $2 || $lev ) {
-				$lev = 1 if $lev || $2 ne 'cut';
-				$Prima::CodeManager::developer{ "comme_$pageCount" }->[$ite] = 1 if $lev;
-				$lev = 0 if $2 eq 'cut';
-			}
-			$ite++;
-		}
-	}
-
-	$Prima::CodeManager::developer{ "block_$pageCount" } = $Prima::CodeManager::developer{notes}->insert_to_page(
-		$pageCount,
-		'CodeManager::Label'	=>
-		text			=>	"1\n2\n3\n4\n5\n6\n7",
-		backColor		=>	$kolor_paska,
-		borderWidth		=>	1,
-		lineSpace		=>	$self->{global}->{GLOBAL}{editor_lineSpace},
-		alignment		=>	ta::Right,
-		place => {
-			x => 51,	relx => 0,		width  =>18,	relwidth  => 0,
-			y => 0,		rely => 0.5,	height =>0,		relheight => 1,
-		},
-		font => {
-			name	=>	$self->{global}->{GLOBAL}{editor_fontName},
-			$type_dimen	=>	$font_dimen,
-			style	=>	fs::Normal,
-		},
-	);
-=cut
 
 	$Prima::CodeManager::developer{ "notes_$pageCount" } = $Prima::CodeManager::developer{notes}->insert_to_page(
 		$pageCount,

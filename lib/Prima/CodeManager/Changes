@@ -4,6 +4,13 @@ Revision history for Perl extension Prima::CodeManager.
 
 ###############################################################################
 
+0.05  Sun Jan 14 07:22:30 2013
+--------------------------------
+
+1. Deleted false comment (pod) from CodeManager.pm
+
+###############################################################################
+
 0.04  Sun Jan 13 19:33:30 2013
 --------------------------------
 
@@ -14,7 +21,6 @@ be collected in groups
 in the notebook.
 
 3. Now a source file in a notebook can be closed be double right mouse click on the file's tab.
-
 
 
 ###############################################################################
@@ -74,5 +80,3 @@ ext_exclude =
 0.01  Sun Nov  6 21:59:30 2011
 	- original version; created by h2xs 1.23 with options
 		-AX --skip-exporter --use-new-tests -n Prima::CodeManager
-
-

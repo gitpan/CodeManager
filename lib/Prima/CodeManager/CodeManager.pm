@@ -8,12 +8,12 @@
 # This program/library is free software; you can redistribute it
 # and/or modify it under the same terms as Perl itself.
 #
-# Last modified (DMYhms): 13-01-2013 17:45:10.
+# Last modified (DMYhms): 14-01-2013 07:25:17.
 ################################################################################
 
 package Prima::CodeManager::CodeManager;
 
-our $VERSION  = '0.04';
+our $VERSION  = '0.05';
 
 1;
 
@@ -210,22 +210,18 @@ sub new
 	push @projects_files_edit, [ $_group => [ @files_edit ]];
 
 #print Dumper(@projects_files_edit);
-=pod
-	for ( my $i = 0; $i < @projects_files_name; $i++ ) {
-		if ( $projects_files_name[$i] =~ /([^\/]+)\.cm/ ) {
-			my $name = $1;
-			if ( -f "$home_directory/projects/$name.cm" ) {
 
-				my $content = $this-> read_file( "$home_directory/projects/$name.cm" );
-				$name = $1 if $content =~ /\n\s*name\s*=\s*\b(.*)\b\s*\n/;
-				$projects_files_open[$i] = [ $name => sub { $this-> open ( "$home_directory/projects/$name.cm" )}];
-				$projects_files_edit[$i] = [ $name => sub { $this-> file_edit ( "$home_directory/projects/$name.cm" )}];
-
-			}
-		}
-	}
-=cut
-
+#	for ( my $i = 0; $i < @projects_files_name; $i++ ) {
+#		if ( $projects_files_name[$i] =~ /([^\/]+)\.cm/ ) {
+#			my $name = $1;
+#			if ( -f "$home_directory/projects/$name.cm" ) {
+#				my $content = $this-> read_file( "$home_directory/projects/$name.cm" );
+#				$name = $1 if $content =~ /\n\s*name\s*=\s*\b(.*)\b\s*\n/;
+#				$projects_files_open[$i] = [ $name => sub { $this-> open ( "$home_directory/projects/$name.cm" )}];
+#				$projects_files_edit[$i] = [ $name => sub { $this-> file_edit ( "$home_directory/projects/$name.cm" )}];
+#			}
+#		}
+#	}
 #-------------------------------------------------------
 	$this->{mw} = Prima::MainWindow-> create(
 		icon => $this-> load_icon( "$CodeManager_directory/img/cm32.png" ),
@@ -724,31 +720,6 @@ sub read_tree {
 			$k++;
 		}
 	}
-
-=pod
-	my @fils = $self->read_dir( $dir, 'file', $nr_of_dir );
-	for ( my $i = 0 ; $i < @fils ; $i++ ) {
-		next if $ext_exclude && $fils[$i] =~ /$ext_exclude$/;
-		$fils[$i] =~  /\.(\w+)$/;
-		my $ext = lc($1);
-		$ext = '' unless $ext;
-		$object->[$k][0] = [ $fils[$i], $self->{images}->{$ext}||$self->{images}->{nil}, $level, 'file', $dir, $nr_of_dir, "$dir/$fils[$i]" ];
-		$self->{listdim} ++;
-		$self->{list}->[ $self->{listdim} ] = $object->[$k][0];
-		$k++;
-	}
-	my @dirs = $self->read_dir( $dir, 'dir', $nr_of_dir  );
-	for ( my $i = 0 ; $i < @dirs ; $i++ ) {
-		next if $dir_exclude && $dirs[$i] =~ /$dir_exclude$/;
-		$object->[$k][0] = [ $dirs[$i], $self->{images}->{dir}, $level, '', $dir, $nr_of_dir, "$dir/$dirs[$i]" ];
-		$object->[$k][1] = [];
-		$object->[$k][1] = [] unless $self->read_tree( $object->[$k][1], $dir.'/'.$dirs[$i], $level + 1, $nr_of_dir, $ext_exclude, $dir_exclude );
-		$object->[$k][2] = $self->{expanded}->{"$dir/$dirs[$i]"}||0;
-		$self->{listdim} ++;
-		$self->{list}->[ $self->{listdim} ] = $object->[$k][0];
-		$k++;
-	}
-=cut
 
 	return $k;
 }
@@ -1250,6 +1221,7 @@ sub make_object
 					eval $self-> read_file( $default );
 				# remain only to create empty file:
 				} else {
+
 					eval { $self-> write_to_file( $par{name}, '' ); };
 				}
 			} else {

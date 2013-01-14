@@ -8,7 +8,7 @@
 # This program/library is free software; you can redistribute it
 # and/or modify it under the same terms as Perl itself.
 #
-# Last modified (DMYhms): 13-01-2013 09:42:18.
+# Last modified (DMYhms): 14-01-2013 07:17:03.
 ################################################################################
 
 use strict;
@@ -1472,7 +1472,7 @@ sub on_dragitem
 	my $found_inv = 0;
 
 ##################################################
-#=pod
+
 	my ( $tpx, $tpo) = $self-> get_item_parent( $tx);
 
 	if (	$fx->[0]->[3] =~ /file/i && $tx->[0]->[3] =~ /file/i
@@ -1520,7 +1520,6 @@ sub on_dragitem
 		return if $@;
 	}
 
-#=cut
 ##################################################
 
 	my $traverse;
@@ -1839,23 +1838,22 @@ use vars qw(@ISA);
 my $unix = Prima::Application-> get_system_info-> {apc} == apc::Unix || $^O =~ /cygwin/;
 my @images;
 my @drvImages;
-=pod
-{
-	my $i = 0;
-	my @idx = (  sbmp::SFolderOpened, sbmp::SFolderClosed);
-	$images[ $i++] = Prima::StdBitmap::icon( $_) for @idx;
-	unless ( $unix) {
-		$i = 0;
-		for (
 
-			sbmp::DriveFloppy, sbmp::DriveHDD,    sbmp::DriveNetwork,
-			sbmp::DriveCDROM,  sbmp::DriveMemory, sbmp::DriveUnknown
-		) {
-			$drvImages[ $i++] = Prima::StdBitmap::icon($_);
-		}
-	}
-}
-=cut
+#{
+#	my $i = 0;
+#	my @idx = (  sbmp::SFolderOpened, sbmp::SFolderClosed);
+#	$images[ $i++] = Prima::StdBitmap::icon( $_) for @idx;
+#	unless ( $unix) {
+#		$i = 0;
+#		for (
+#
+#			sbmp::DriveFloppy, sbmp::DriveHDD,    sbmp::DriveNetwork,
+#			sbmp::DriveCDROM,  sbmp::DriveMemory, sbmp::DriveUnknown
+#		) {
+#			$drvImages[ $i++] = Prima::StdBitmap::icon($_);
+#		}
+#	}
+#}
 
 sub profile_default
 {
